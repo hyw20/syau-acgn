@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手账本 · 自介页编辑器</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- 可爱加载页 -->
+  <div class="loader" id="loader">
+    <div class="loader-bg"></div>
+    <div class="loader-inner">
+      <div class="loader-book">📔</div>
+      <div class="loader-stars">
+        <span class="star s1">✨</span>
+        <span class="star s2">⭐</span>
+        <span class="star s3">💫</span>
+        <span class="star s4">🌸</span>
+      </div>
+      <h1 class="loader-title">手账本</h1>
+      <p class="loader-sub">正在翻开你的自介页…</p>
+      <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+      <div class="loader-dots">
+        <span class="dot d1">🖊</span>
+        <span class="dot d2">📎</span>
+        <span class="dot d3">🩷</span>
+        <span class="dot d4">✂️</span>
+      </div>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">📔</span>
+      <span class="brand-text">手账本</span>
+      <span class="brand-sub">自介页编辑器</span>
+    </div>
+
+    <div class="top-actions">
+      <div class="action-group">
+        <label class="field-label">画布</label>
+        <select id="pageSize" title="页面尺寸"></select>
+      </div>
+      <button class="btn" id="btnBg" title="背景颜色与纹理">🖍 背景</button>
+      <span class="divider"></span>
+      <button class="btn primary" id="btnExportPng">⬇ 导出图片</button>
+      <button class="btn" id="btnExportHtml">🌐 导出网页</button>
+      <button class="btn" id="btnCommunity" title="看看大家的作品">👥 社区</button>
+      <button class="btn primary" id="btnPublish" title="把当前页发布到社区">📤 发布</button>
+      <span class="divider"></span>
+      <button class="btn" id="btnSaveProject">💾 保存项目</button>
+      <button class="btn" id="btnLoadProject">📂 导入项目</button>
+      <span class="save-state" id="saveState">已自动保存</span>
+    </div>
+  </header>
+
+  <main class="app">
+    <!-- 左侧：素材库 -->
+    <aside class="panel left-panel">
+      <div class="tabs" id="tabs">
+        <button class="tab active" data-tab="shapes">形状</button>
+        <button class="tab" data-tab="frames">相框</button>
+        <button class="tab" data-tab="stickers">贴纸</button>
+        <button class="tab" data-tab="upload">素材</button>
+      </div>
+
+      <div class="tab-body">
+        <section class="tab-pane active" data-pane="shapes">
+          <p class="pane-tip">点击添加到画布，画布上可拖动 / 缩放 / 旋转</p>
+          <div class="asset-grid" id="shapesGrid"></div>
+        </section>
+
+        <section class="tab-pane" data-pane="frames">
+          <p class="pane-tip">照片框放进图片后，可选中它 →「放入照片」</p>
+          <div class="asset-grid" id="framesGrid"></div>
+        </section>
+
+        <section class="tab-pane" data-pane="stickers">
+          <p class="pane-tip">可爱贴纸，随便贴</p>
+          <div class="asset-grid" id="stickersGrid"></div>
+        </section>
+
+        <section class="tab-pane" data-pane="upload">
+          <p class="pane-tip">上传自己的图片，手动裁剪后贴进手账</p>
+          <button class="btn wide" id="btnUpload">🖼 上传图片</button>
+          <div class="dropzone" id="dropzone">
+            把图片拖到这里<br><small>PNG / JPG / WebP / GIF / SVG</small>
+          </div>
+          <div class="upload-list" id="uploadList"></div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- 中间：画布 -->
+    <section class="canvas-wrap" id="canvasWrap">
+      <div class="canvas-hint" id="canvasHint">点击素材添加 · 拖动元素 · 拖动角落缩放 · 顶部圆点旋转 · Shift 等比缩放</div>
+
+      <div class="canvas-stage" id="canvasStage">
+        <svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1400"></svg>
+      </div>
+
+      <div class="last-page-tip" id="lastPageTip" hidden></div>
+
+      <div class="pager" id="pager">
+        <button class="mini-btn" id="btnPrevPage" title="上一页">‹</button>
+        <span class="pager-info" id="pagerInfo">1 / 1</span>
+        <button class="mini-btn" id="btnNextPage" title="下一页">›</button>
+        <span class="pager-divider"></span>
+        <button class="mini-btn" id="btnAddPage" title="加一页">➕</button>
+        <button class="mini-btn danger" id="btnDelPage" title="删当前页">🗑</button>
+      </div>
+    </section>
+
+    <!-- 右侧：图层 + 属性 -->
+    <aside class="panel right-panel">
+      <div class="panel-block layers-block">
+        <div class="panel-head">
+          <span>图层</span>
+          <div class="panel-head-actions">
+            <button class="mini-btn" id="btnFront" title="置顶">⤒</button>
+            <button class="mini-btn" id="btnUp" title="上移一层">↑</button>
+            <button class="mini-btn" id="btnDown" title="下移一层">↓</button>
+            <button class="mini-btn" id="btnBack" title="置底">⤓</button>
+            <button class="mini-btn" id="btnDuplicate" title="复制">⧉</button>
+            <button class="mini-btn danger" id="btnDelete" title="删除">🗑</button>
+          </div>
+        </div>
+        <div class="layers-list" id="layersList"></div>
+      </div>
+
+      <div class="panel-block props-block">
+        <div class="panel-head"><span>属性</span></div>
+        <div class="props-body" id="propsBody">
+          <p class="empty-note">未选中元素。<br>点击画布上的元素即可编辑。</p>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- 裁剪弹窗 -->
+  <div class="modal-backdrop" id="cropModal" hidden>
+    <div class="modal crop-modal">
+      <div class="modal-head">
+        <span>裁剪图片</span>
+        <button class="close-btn" data-close="cropModal">✕</button>
+      </div>
+      <div class="crop-toolbar">
+        <div class="crop-ratios" id="cropRatios">
+          <button class="mini-btn active" data-ratio="free">自由</button>
+          <button class="mini-btn" data-ratio="1:1">1:1</button>
+          <button class="mini-btn" data-ratio="4:3">4:3</button>
+          <button class="mini-btn" data-ratio="3:4">3:4</button>
+          <button class="mini-btn" data-ratio="16:9">16:9</button>
+        </div>
+        <button class="btn" id="btnCropReset">重置</button>
+      </div>
+      <div class="crop-viewport" id="cropViewport">
+        <img id="cropImage" draggable="false" alt="">
+        <div class="crop-box" id="cropBox">
+          <div class="crop-handle nw" data-h="nw"></div>
+          <div class="crop-handle n" data-h="n"></div>
+          <div class="crop-handle ne" data-h="ne"></div>
+          <div class="crop-handle e" data-h="e"></div>
+          <div class="crop-handle se" data-h="se"></div>
+          <div class="crop-handle s" data-h="s"></div>
+          <div class="crop-handle sw" data-h="sw"></div>
+          <div class="crop-handle w" data-h="w"></div>
+          <div class="crop-grid"></div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="cropModal">取消</button>
+        <button class="btn primary" id="btnCropApply">确定裁剪</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 背景弹窗 -->
+  <div class="modal-backdrop" id="bgModal" hidden>
+    <div class="modal bg-modal">
+      <div class="modal-head">
+        <span>背景</span>
+        <button class="close-btn" data-close="bgModal">✕</button>
+      </div>
+      <div class="bg-grid" id="bgGrid"></div>
+      <div class="modal-foot">
+        <button class="btn primary" data-close="bgModal">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept="image/*" hidden>
+  <input type="file" id="jsonInput" accept=".json,application/json" hidden>
+
+  <script src="app.js"></script>
+</body>
+</html>

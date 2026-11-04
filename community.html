@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手账社区</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="community.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">🌐</span>
+      <span class="brand-text">手账社区</span>
+      <span class="brand-sub">大家的作品墙</span>
+    </div>
+
+    <div class="top-actions">
+      <a class="btn" href="/" title="回编辑器">📔 编辑器</a>
+      <span class="divider"></span>
+      <div id="guestZone" class="auth-zone">
+        <button class="btn" id="btnLogin">登录</button>
+        <button class="btn primary" id="btnRegister">注册</button>
+      </div>
+      <div id="userZone" class="auth-zone" hidden>
+        <span class="user-name" id="userName"></span>
+        <button class="btn primary" id="btnPublish">📤 发布作品</button>
+        <button class="btn" id="btnLogout">登出</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="community-main">
+    <div class="gallery-head">
+      <h2>作品墙</h2>
+      <span class="gallery-count" id="galleryCount">加载中…</span>
+    </div>
+    <div class="gallery" id="gallery">
+      <p class="gallery-empty">还没有作品，登录后发布第一张吧 ✨</p>
+    </div>
+  </main>
+
+  <!-- 登录 / 注册弹窗 -->
+  <div class="modal-backdrop" id="authModal" hidden>
+    <div class="modal auth-modal">
+      <div class="modal-head">
+        <span id="authTitle">登录</span>
+        <button class="close-btn" data-close="authModal">✕</button>
+      </div>
+      <div class="auth-body">
+        <div class="auth-tabs" id="authTabs">
+          <button class="auth-tab active" data-auth="login" type="button">登录</button>
+          <button class="auth-tab" data-auth="register" type="button">注册</button>
+        </div>
+        <div class="prop-row" id="accountRow">
+          <label id="accountLabel">用户名 / QQ 邮箱</label>
+          <input type="text" id="authAccount" placeholder="用户名或 QQ 邮箱" maxlength="64">
+        </div>
+        <div class="prop-row">
+          <label>密码</label>
+          <input type="password" id="authPassword" placeholder="至少 4 位" maxlength="64">
+        </div>
+        <div class="register-options" id="registerOptions" hidden>
+          <p class="prop-hint" style="margin:0 0 8px">注册方式：</p>
+          <div class="reg-type">
+            <label class="reg-chip"><input type="radio" name="regType" value="username" checked> 用户名注册</label>
+            <label class="reg-chip"><input type="radio" name="regType" value="email"> QQ 邮箱注册</label>
+          </div>
+          <div class="prop-row" id="codeRow" hidden style="margin-top:10px">
+            <label>验证码</label>
+            <div class="code-inline">
+              <input type="text" id="authCode" placeholder="6 位验证码" maxlength="6" inputmode="numeric">
+              <button class="btn" id="btnSendCode" type="button">发送验证码</button>
+            </div>
+            <p class="prop-hint" id="codeHint" hidden></p>
+          </div>
+        </div>
+        <p class="auth-error" id="authError" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="authModal">取消</button>
+        <button class="btn primary" id="authSubmit">登录</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 发布弹窗 -->
+  <div class="modal-backdrop" id="publishModal" hidden>
+    <div class="modal publish-modal">
+      <div class="modal-head">
+        <span>发布作品</span>
+        <button class="close-btn" data-close="publishModal">✕</button>
+      </div>
+      <div class="publish-body">
+        <div class="prop-row">
+          <label>作品标题</label>
+          <input type="text" id="publishTitle" placeholder="给作品起个名字" maxlength="40">
+        </div>
+        <div class="prop-row">
+          <label>作品图片</label>
+          <div class="publish-drop" id="publishDrop">
+            <img id="publishPreview" alt="" hidden>
+            <span id="publishPlaceholder">点这里选择图片（PNG / JPG）<br><small>或在编辑器里点「📤 发布」直接传</small></span>
+          </div>
+          <input type="file" id="publishFile" accept="image/*" hidden>
+        </div>
+        <p class="auth-error" id="publishError" hidden></p>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="publishModal">取消</button>
+        <button class="btn primary" id="publishSubmit">发布</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="community.js"></script>
+</body>
+</html>
