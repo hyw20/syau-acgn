@@ -1,0 +1,118 @@
+/* 登录/注册弹窗 + 顶部导航（编辑器与社区共用） */
+
+/* ---------------- 顶部导航 ---------------- */
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 18px;
+}
+
+.nav-item {
+  border: none;
+  background: transparent;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-family: var(--font);
+  color: var(--ink-soft);
+  border-radius: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.nav-item:hover { color: var(--accent-deep); background: #fff0f2; }
+
+.nav-item.active {
+  color: var(--accent-deep);
+  background: #ffe9ec;
+}
+
+/* ---------------- 登录弹窗 ---------------- */
+.auth-modal { width: min(400px, 94vw); }
+
+.auth-body { padding: 18px 20px; }
+
+.auth-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  background: #f3e9d9;
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.auth-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 8px;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--ink-soft);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.auth-tab.active {
+  background: #fff;
+  color: var(--accent-deep);
+  box-shadow: 0 1px 4px rgba(90, 60, 40, .12);
+}
+
+.reg-type {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.reg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
+
+.reg-chip:has(input:checked) {
+  border-color: var(--accent);
+  background: #fff0f2;
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.reg-chip input { accent-color: var(--accent); }
+
+.auth-error {
+  color: #c0392b;
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
+.code-inline {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.code-inline input {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 14px;
+  font-family: var(--font);
+  color: var(--ink);
+  background: #fff;
+}
+
+.code-inline .btn { white-space: nowrap; }
+.code-inline .btn:disabled { opacity: .55; cursor: not-allowed; }

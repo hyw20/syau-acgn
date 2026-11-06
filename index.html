@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>手账本 · 自介页编辑器</title>
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="auth.css">
 </head>
 <body>
   <!-- 可爱加载页 -->
@@ -36,6 +37,11 @@
       <span class="brand-text">手账本</span>
       <span class="brand-sub">自介页编辑器</span>
     </div>
+    <nav class="main-nav">
+      <a class="nav-item active" href="/">手账</a>
+      <a class="nav-item" href="/community.html">社区</a>
+      <button class="nav-item" id="navAuth">登录</button>
+    </nav>
 
     <div class="top-actions">
       <div class="action-group">
@@ -46,7 +52,6 @@
       <span class="divider"></span>
       <button class="btn primary" id="btnExportPng">⬇ 导出图片</button>
       <button class="btn" id="btnExportHtml">🌐 导出网页</button>
-      <button class="btn" id="btnCommunity" title="看看大家的作品">👥 社区</button>
       <button class="btn primary" id="btnPublish" title="把当前页发布到社区">📤 发布</button>
       <span class="divider"></span>
       <button class="btn" id="btnSaveProject">💾 保存项目</button>
@@ -193,6 +198,7 @@
   <input type="file" id="fileInput" accept="image/*" hidden>
   <input type="file" id="jsonInput" accept=".json,application/json" hidden>
 
+  <script src="auth.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1505,11 +1505,20 @@ function init() {
   // 导出
   $('#btnExportPng').addEventListener('click', exportPng);
   $('#btnExportHtml').addEventListener('click', exportHtml);
-  $('#btnCommunity').addEventListener('click', () => { location.href = '/community.html'; });
   $('#btnPublish').addEventListener('click', publishToCommunity);
   $('#btnSaveProject').addEventListener('click', saveProject);
   $('#btnLoadProject').addEventListener('click', () => $('#jsonInput').click());
   $('#jsonInput').addEventListener('change', loadProjectFile);
+
+  // 顶部导航：登录按钮
+  const navAuth = $('#navAuth');
+  navAuth.addEventListener('click', () => {
+    if (Auth.user) { location.href = '/community.html'; }
+    else { Auth.open('login'); }
+  });
+  Auth.init((user) => {
+    navAuth.textContent = user ? (user.username || user.email) : '登录';
+  });
 
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('resize', () => {

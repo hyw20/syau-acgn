@@ -347,7 +347,7 @@ async function handleApi(req, res, pathname) {
 /* ---------------- 静态服务 ---------------- */
 function serveStatic(req, res, pathname) {
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
-  const publicFiles = new Set(['index.html', 'community.html', 'styles.css', 'app.js', 'community.css', 'community.js']);
+  const publicFiles = new Set(['index.html', 'community.html', 'styles.css', 'app.js', 'community.css', 'community.js', 'auth.css', 'auth.js']);
   const p = pathname === '/' ? '/index.html' : pathname;
   const upload = /^\/uploads\/[a-f0-9]{16}\.(?:png|jpg|webp|gif)$/.test(p);
   if (!publicFiles.has(p.slice(1)) && !upload) { res.writeHead(404); res.end('404 Not Found'); return; }

@@ -3,8 +3,7 @@
 
 const $ = (sel) => document.querySelector(sel);
 
-let me = null;           // 当前登录用户
-let authMode = 'login';  // login | register
+let me = null; // 当前登录用户（由 Auth 模块维护）
 
 /* ---------------- API 封装 ---------------- */
 async function api(path, opts = {}) {
@@ -16,7 +15,6 @@ async function api(path, opts = {}) {
 
 /* ---------------- 登录态渲染 ---------------- */
 function renderAuth() {
-  $('#guestZone').hidden = !!me;
   $('#userZone').hidden = !me;
   if (me) $('#userName').textContent = me.username || me.email;
 }
@@ -34,8 +32,9 @@ async function loadGallery() {
     g.innerHTML = `<p class="gallery-empty">还没有作品，登录后发布第一张吧 ✨</p>`;
     return;
   }
+  const myName = me ? (me.username || (me.email ? me.email.split('@')[0] : null)) : null;
   g.innerHTML = data.works.map((w) => {
-    const mine = me && w.authorName === me.username;
+    const mine = myName && w.authorName === myName;
     return `<div class="work-card" data-id="${w.id}">
       <img class="work-thumb" src="/${w.file}" alt="${escapeHtml(w.title)}" loading="lazy">
       <div class="work-info">
@@ -64,123 +63,6 @@ function timeAgo(ts) {
   if (d < 30) return d + ' 天前';
   const date = new Date(ts);
   return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-}
-
-/* ---------------- 登录 / 注册 ---------------- */
-function openAuth(mode) {
-  authMode = mode;
-  $('#authTitle').textContent = mode === 'login' ? '登录 / 注册' : '登录 / 注册';
-  $('#authSubmit').textContent = mode === 'login' ? '登录' : '注册';
-  $('#authError').hidden = true;
-  $('#authAccount').value = '';
-  $('#authPassword').value = '';
-  $('#authCode').value = '';
-  $('#codeHint').hidden = true;
-  document.querySelectorAll('#authTabs .auth-tab').forEach((t) => {
-    t.classList.toggle('active', t.dataset.auth === mode);
-  });
-  // 账号标签文案
-  $('#accountLabel').textContent = mode === 'login' ? '用户名 / QQ 邮箱' : '用户名 / QQ 邮箱';
-  $('#authAccount').placeholder = mode === 'login' ? '用户名或 QQ 邮箱' : '注册用户名或 QQ 邮箱';
-  $('#registerOptions').hidden = mode !== 'register';
-  updateRegisterTypeUI();
-  $('#authModal').hidden = false;
-  $('#authAccount').focus();
-}
-
-function updateRegisterTypeUI() {
-  const isEmail = document.querySelector('input[name="regType"]:checked').value === 'email';
-  $('#codeRow').hidden = !isEmail;
-  $('#accountLabel').textContent = isEmail ? 'QQ 邮箱' : '用户名';
-  $('#authAccount').placeholder = isEmail ? '如 123456789@qq.com' : '2-20 个字符';
-}
-
-async function submitAuth() {
-  const account = $('#authAccount').value.trim();
-  const password = $('#authPassword').value;
-  const errEl = $('#authError');
-  errEl.hidden = true;
-  if (!account || !password) { showAuthError('请填写账号和密码'); return; }
-
-  if (authMode === 'register') {
-    const isEmail = document.querySelector('input[name="regType"]:checked').value === 'email';
-    const code = $('#authCode').value.trim();
-    const payload = isEmail ? { email: account, password, code } : { username: account, password };
-    const { status, data } = await api('/api/register', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    if (status !== 200) { showAuthError((data && data.error) || '注册失败'); return; }
-    me = data.user;
-    renderAuth();
-    $('#authModal').hidden = true;
-    loadGallery();
-    return;
-  }
-
-  const { status, data } = await api('/api/login', {
-    method: 'POST',
-    body: JSON.stringify({ account, password }),
-  });
-  if (status !== 200) { showAuthError((data && data.error) || '登录失败'); return; }
-  me = data.user;
-  renderAuth();
-  $('#authModal').hidden = true;
-  loadGallery();
-}
-
-/* 发送验证码 + 60 秒倒计时 */
-let codeTimer = null;
-async function sendCode() {
-  const email = $('#authAccount').value.trim();
-  const errEl = $('#authError');
-  errEl.hidden = true;
-  if (!/^[1-9][0-9]{4,11}@qq\.com$/i.test(email)) { showAuthError('请输入有效的 QQ 邮箱（格式：数字@qq.com）'); return; }
-
-  const btn = $('#btnSendCode');
-  btn.disabled = true;
-  try {
-    const { status, data } = await api('/api/auth/send-code', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-    if (status !== 200) { showAuthError((data && data.error) || '发送失败'); btn.disabled = false; return; }
-    const hint = $('#codeHint');
-    if (data.devCode) {
-      hint.textContent = `开发模式验证码：${data.devCode}`;
-    } else {
-      hint.textContent = data.message || '验证码已发送，请查收 QQ 邮箱';
-    }
-    hint.hidden = false;
-    startCountdown(btn);
-  } catch {
-    showAuthError('发送失败，请稍后重试');
-    btn.disabled = false;
-  }
-}
-
-function startCountdown(btn) {
-  let n = 60;
-  btn.textContent = n + 's';
-  clearInterval(codeTimer);
-  codeTimer = setInterval(() => {
-    n -= 1;
-    if (n <= 0) { clearInterval(codeTimer); btn.textContent = '发送验证码'; btn.disabled = false; }
-    else btn.textContent = n + 's';
-  }, 1000);
-}
-
-function showAuthError(msg) {
-  const errEl = $('#authError');
-  errEl.textContent = msg;
-  errEl.hidden = false;
-}
-
-async function logout() {
-  await api('/api/logout', { method: 'POST' });
-  me = null;
-  renderAuth();
-  loadGallery();
 }
 
 /* ---------------- 发布 ---------------- */
@@ -234,39 +116,31 @@ async function deleteWork(id) {
 
 /* ---------------- 初始化 ---------------- */
 async function init() {
-  // 登录态
-  const res = await api('/api/me');
-  me = (res.data && res.data.user) || null;
-  renderAuth();
+  // 登录态变化时刷新用户区与画廊
+  Auth.init((user) => {
+    me = user;
+    $('#navAuth').textContent = user ? (user.username || user.email) : '登录';
+    renderAuth();
+    loadGallery();
+  });
 
-  // 顶栏按钮
-  $('#btnLogin').addEventListener('click', () => openAuth('login'));
-  $('#btnRegister').addEventListener('click', () => openAuth('register'));
-  $('#btnLogout').addEventListener('click', logout);
+  // 顶栏：导航登录按钮 + 发布 / 登出
+  $('#navAuth').addEventListener('click', () => {
+    if (Auth.user) { location.href = '/community.html'; }
+    else { Auth.open('login'); }
+  });
+  $('#btnLogout').addEventListener('click', () => Auth.logout());
   $('#btnPublish').addEventListener('click', openPublish);
-  $('#authSubmit').addEventListener('click', submitAuth);
-  $('#btnSendCode').addEventListener('click', sendCode);
-  $('#authPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') submitAuth(); });
-
-  // 登录/注册 tab 切换 + 注册方式切换
-  $('#authTabs').addEventListener('click', (e) => {
-    const tab = e.target.closest('.auth-tab');
-    if (tab) openAuth(tab.dataset.auth);
-  });
-  document.querySelectorAll('input[name="regType"]').forEach((radio) => {
-    radio.addEventListener('change', updateRegisterTypeUI);
-  });
 
   // 发布
   $('#publishDrop').addEventListener('click', () => $('#publishFile').click());
   $('#publishFile').addEventListener('change', (e) => { handlePublishFile(e.target.files[0]); e.target.value = ''; });
   $('#publishSubmit').addEventListener('click', submitPublish);
 
-  // 弹窗关闭
+  // 弹窗关闭（发布弹窗；登录弹窗由 auth.js 管理）
   document.querySelectorAll('[data-close]').forEach((btn) => {
     btn.addEventListener('click', () => { $('#' + btn.dataset.close).hidden = true; });
   });
-  // 点遮罩关闭
   document.querySelectorAll('.modal-backdrop').forEach((bd) => {
     bd.addEventListener('click', (e) => { if (e.target === bd) bd.hidden = true; });
   });
@@ -276,9 +150,6 @@ async function init() {
     const del = e.target.closest('[data-del]');
     if (del) deleteWork(del.dataset.del);
   });
-
-  // 编辑器跳转带图（若 URL 带 image，预填发布）
-  loadGallery();
 }
 
 document.addEventListener('DOMContentLoaded', init);
