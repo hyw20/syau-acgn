@@ -67,12 +67,12 @@ node server.js
 
 已部署在腾讯云轻量服务器 `82.157.140.96`：
 
-- 编辑器：`http://82.157.140.96/`
-- 社区：`http://82.157.140.96/community.html`
+- 编辑器：`https://milkdragon.art/`
+- 社区：`https://milkdragon.art/community.html`
 - 代码在 `/opt/syau-acgn`，Node 22 在 `/opt/node22`，systemd 服务名 `syau-acgn`，仅监听 `127.0.0.1:18080`。
-- 服务器已有 1Panel/OpenResty 与 Halo（Halo 使用 `127.0.0.1:8080`）；新增 IP 站点文件 `/opt/1panel/www/conf.d/syau-acgn-ip.conf`，未替换 Halo 配置。
+- 服务器已有 1Panel/OpenResty 与 Halo（Halo 使用 `127.0.0.1:8080`）；手账站点配置 `/opt/1panel/www/conf.d/syau-acgn.conf`，证书在 `/opt/1panel/www/sites/milkdragon.art/ssl/`，未替换 Halo 配置。
 - `data/` 和 `uploads/` 位于服务器本机；更新代码前先备份它们。QQ 邮箱验证码在配置 SMTP 前返回 503，用户名注册仍可用。
-- 当前只有 HTTP。登录、注册和作品发布涉及账号及密码，**给真实用户使用前必须先配置域名与 HTTPS**，不应在 HTTP 上输入真实密码。
+- HTTPS 已启用（腾讯云 TrustAsia 证书，覆盖 `milkdragon.art` 与 `www.milkdragon.art`），HTTP 已配置 301 跳转。域名尚未完成 ICP 备案前，HTTP 端口访问会被腾讯云边缘拦截（302 到 webblock），HTTPS 可直连；备案通过后 HTTP 跳转亦会生效。
 
 服务器已有环境时更新：
 
