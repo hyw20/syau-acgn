@@ -63,11 +63,33 @@ node server.js
 
 ## Ubuntu 轻量云部署
 
+### 当前服务器（2026-11-06）
+
+已部署在腾讯云轻量服务器 `82.157.140.96`：
+
+- 编辑器：`http://82.157.140.96/`
+- 社区：`http://82.157.140.96/community.html`
+- 代码在 `/opt/syau-acgn`，Node 22 在 `/opt/node22`，systemd 服务名 `syau-acgn`，仅监听 `127.0.0.1:18080`。
+- 服务器已有 1Panel/OpenResty 与 Halo（Halo 使用 `127.0.0.1:8080`）；新增 IP 站点文件 `/opt/1panel/www/conf.d/syau-acgn-ip.conf`，未替换 Halo 配置。
+- `data/` 和 `uploads/` 位于服务器本机；更新代码前先备份它们。QQ 邮箱验证码在配置 SMTP 前返回 503，用户名注册仍可用。
+- 当前只有 HTTP。登录、注册和作品发布涉及账号及密码，**给真实用户使用前必须先配置域名与 HTTPS**，不应在 HTTP 上输入真实密码。
+
+服务器已有环境时更新：
+
+```bash
+cd /opt/syau-acgn
+sudo -u ubuntu git pull --ff-only
+sudo systemctl restart syau-acgn
+systemctl status syau-acgn --no-pager
+```
+
+以下是**新服务器通用示例**，不要在这台已有 1Panel/OpenResty、Halo 的机器上直接执行安装 Nginx、绑定 8080 的步骤。
+
 需要 `ubuntu` 用户的 SSH 登录权限、绑定到服务器的域名以及腾讯云防火墙放行 TCP 80/443。以 Ubuntu 22.04/24.04 为例，在服务器终端执行：
 
 ```bash
 sudo apt update && sudo apt install -y git nodejs npm nginx certbot python3-certbot-nginx
-node --version  # 建议 Node.js 18 或更新版本；发行版版本过旧时改用 NodeSource LTS
+node --version  # 需 Node.js 18 或更新版本；Ubuntu 22.04 软件源只有 Node 12，需另装受支持版本
 sudo mkdir -p /opt/syau-acgn
 sudo chown ubuntu:ubuntu /opt/syau-acgn
 git clone https://github.com/hyw20/syau-acgn.git /opt/syau-acgn
