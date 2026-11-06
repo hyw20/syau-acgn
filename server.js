@@ -21,8 +21,7 @@ const WORKS_FILE = path.join(DATA_DIR, 'works.json');
 const BODY_LIMIT = 12 * 1024 * 1024; // 12MB
 const MAX_IMAGE = 10 * 1024 * 1024;  // 单张作品图 10MB
 
-/* SMTP 配置：优先环境变量，其次 data/config.json。
- * 不配置也能跑——验证码会打印到服务端控制台（开发模式）。 */
+/* SMTP 配置：优先环境变量，其次 data/config.json。 */
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 let fileConfig = {};
 try { fileConfig = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch {}
@@ -33,6 +32,7 @@ const SMTP = {
   pass: process.env.SMTP_PASS || fileConfig.smtpPass || '',
   from: process.env.SMTP_FROM || fileConfig.smtpFrom || '',
 };
+const DEV_CODES = process.env.DEV_EMAIL_CODES === '1' && process.env.NODE_ENV !== 'production';
 
 for (const d of [DATA_DIR, UPLOAD_DIR]) {
   if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
@@ -91,8 +91,8 @@ let works = readJson(WORKS_FILE, []);
 const sessions = new Map(); // token -> { userId }
 const codes = new Map();   // email -> { code, expires }
 
-// 旧版 username 字段迁移为 email（宽容处理，仅本地测试数据）
-users = users.map((u) => ({ email: u.email || u.username, id: u.id, salt: u.salt, hash: u.hash, createdAt: u.createdAt }));
+// 保留旧账号的两种登录标识，不把用户名误作邮箱。
+users = users.map((u) => ({ email: u.email, username: u.username, id: u.id, salt: u.salt, hash: u.hash, createdAt: u.createdAt }));
 
 function getSession(req) {
   const token = parseCookies(req.headers.cookie).sid;
@@ -106,12 +106,6 @@ function isQQEmail(email) {
 }
 
 /* ---------------- 验证码 ---------------- */
-function newCode(email) {
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  codes.set(email.toLowerCase(), { code, expires: Date.now() + 5 * 60 * 1000 });
-  return code;
-}
-
 function verifyCode(email, code) {
   const rec = codes.get(String(email || '').toLowerCase());
   if (!rec) return false;
@@ -137,7 +131,7 @@ function buildMail(fromName, from, to, subject, text) {
 
 function smtpSend(opts) {
   return new Promise((resolve, reject) => {
-    const socket = tls.connect({ host: opts.host, port: opts.port, servername: opts.host, rejectUnauthorized: false }, () => {
+    const socket = tls.connect({ host: opts.host, port: opts.port, servername: opts.host }, () => {
       let buf = '';
       const steps = [
         () => 'EHLO localhost\r\n',
@@ -180,8 +174,11 @@ function smtpSend(opts) {
 
 async function sendVerifyEmail(email, code) {
   if (!SMTP.user || !SMTP.pass) {
-    console.log(`[开发模式] ${email} 的注册验证码：${code}（配置 QQ 邮箱 SMTP 后才会真正发邮件）`);
-    return { sent: false };
+    if (DEV_CODES) {
+      console.log(`[开发模式] ${email} 的注册验证码：${code}`);
+      return { sent: false, dev: true };
+    }
+    return { sent: false, error: '未配置邮箱发送服务' };
   }
   try {
     await smtpSend({
@@ -226,14 +223,19 @@ async function handleApi(req, res, pathname) {
     const body = JSON.parse(await readBody(req));
     const email = String(body.email || '').trim();
     if (!isQQEmail(email)) return sendJson(res, 400, { error: '请输入有效的 QQ 邮箱（格式：数字@qq.com）' });
-    const existing = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+    const existing = users.find((u) => u.email && u.email.toLowerCase() === email.toLowerCase());
     if (existing) return sendJson(res, 409, { error: '该邮箱已注册，请直接登录' });
     const last = codes.get(email.toLowerCase());
     if (last && Date.now() < last.expires - 4 * 60 * 1000) return sendJson(res, 429, { error: '验证码已发送，请 1 分钟后再试' });
-    const code = newCode(email);
+    const code = String(crypto.randomInt(100000, 1000000));
     const result = await sendVerifyEmail(email, code);
-    if (result.sent) return sendJson(res, 200, { ok: true, message: '验证码已发送到你的 QQ 邮箱' });
-    return sendJson(res, 200, { ok: true, message: '开发模式：验证码已打印到服务端控制台', devCode: code });
+    if (result.sent || result.dev) {
+      codes.set(email.toLowerCase(), { code, expires: Date.now() + 5 * 60 * 1000 });
+      return sendJson(res, 200, result.dev
+        ? { ok: true, message: '开发模式', devCode: code }
+        : { ok: true, message: '验证码已发送到你的 QQ 邮箱' });
+    }
+    return sendJson(res, 503, { error: '邮件暂时无法发送，请联系管理员' });
   }
 
   if (pathname === '/api/register' && method === 'POST') {
@@ -344,15 +346,17 @@ async function handleApi(req, res, pathname) {
 
 /* ---------------- 静态服务 ---------------- */
 function serveStatic(req, res, pathname) {
-  let p = decodeURIComponent(pathname);
-  if (p === '/') p = '/index.html';
-  const file = path.normalize(path.join(ROOT, p));
-  if (!file.startsWith(ROOT)) { res.writeHead(403); res.end('forbidden'); return; }
+  if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
+  const publicFiles = new Set(['index.html', 'community.html', 'styles.css', 'app.js', 'community.css', 'community.js']);
+  const p = pathname === '/' ? '/index.html' : pathname;
+  const upload = /^\/uploads\/[a-f0-9]{16}\.(?:png|jpg|webp|gif)$/.test(p);
+  if (!publicFiles.has(p.slice(1)) && !upload) { res.writeHead(404); res.end('404 Not Found'); return; }
+  const file = path.join(ROOT, p.slice(1));
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); res.end('404 Not Found'); return; }
     const ext = path.extname(file).toLowerCase();
     res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
-    res.end(data);
+    res.end(req.method === 'HEAD' ? undefined : data);
   });
 }
 
@@ -367,7 +371,8 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+// Reverse proxy handles public traffic; never expose the raw Node API on all interfaces.
+server.listen(PORT, '127.0.0.1', () => {
   console.log('手账社区已启动: http://localhost:' + PORT);
   console.log('  编辑器  http://localhost:' + PORT + '/');
   console.log('  社区    http://localhost:' + PORT + '/community.html');
