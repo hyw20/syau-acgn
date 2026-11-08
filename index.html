@@ -98,8 +98,8 @@
             把图片拖到这里<br><small>PNG / JPG / WebP / GIF / SVG</small>
           </div>
           <div class="upload-list" id="uploadList"></div>
-          <div class="tpl-section" id="templateSection" hidden>
-            <p class="pane-tip" style="margin-top:14px">多张照片拼接模板</p>
+          <div class="tpl-section" id="templateSection">
+            <p class="pane-tip" style="margin-top:14px">拼图模板 · 点模板铺格子，空位点「＋」补照片</p>
             <div class="tpl-grid" id="templateCards"></div>
           </div>
         </section>
@@ -108,10 +108,15 @@
 
     <!-- 中间：画布 -->
     <section class="canvas-wrap" id="canvasWrap">
-      <div class="canvas-hint" id="canvasHint">点击素材添加 · 拖动元素 · 拖动角落缩放 · 顶部圆点旋转 · Shift 等比缩放</div>
+      <div class="canvas-hint" id="canvasHint">拖动元素 · 角落缩放 · 圆点旋转 · Ctrl+滚轮缩放画布</div>
 
       <div class="canvas-stage" id="canvasStage">
         <svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1400"></svg>
+        <div class="zoom-bar" id="zoomBar">
+          <button class="mini-btn" id="btnZoomOut" title="缩小">−</button>
+          <button class="zoom-pct" id="zoomPct" title="点击恢复 100%">100%</button>
+          <button class="mini-btn" id="btnZoomIn" title="放大">＋</button>
+        </div>
       </div>
 
       <div class="last-page-tip" id="lastPageTip" hidden></div>

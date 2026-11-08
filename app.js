@@ -369,6 +369,13 @@ function renderItem(item) {
   const t = `translate(${item.x} ${item.y}) rotate(${item.rotation || 0})`;
   const wrap = `<g class="layer" data-id="${item.id}" transform="${t}">`;
 
+  // 模板空格子占位：虚线框 + 「＋」，点击上传照片
+  if (item.placeholder) {
+    return `${wrap}<rect x="${-item.w / 2}" y="${-item.h / 2}" width="${item.w}" height="${item.h}" rx="12" fill="#fdf9f0" stroke="#d9c2a3" stroke-width="2" stroke-dasharray="10 7"/>
+    <text text-anchor="middle" y="-2" font-size="30" fill="#cbb49b">＋</text>
+    <text text-anchor="middle" y="26" font-size="14" fill="#cbb49b">点此上传照片</text></g>`;
+  }
+
   if (item.type === 'text') {
     const txt = item.text || {};
     const fs = txt.fontSize || 48;
@@ -621,6 +628,8 @@ function onStagePointerDown(e) {
   if (layer) {
     e.preventDefault();
     const id = layer.dataset.id;
+    const item = getItem(id);
+    if (item && item.placeholder) { fillPlaceholder(id); return; }
     if (state.selection !== id) select(id);
     startDrag(e, id);
     return;
@@ -1103,7 +1112,20 @@ function applyCrop() {
   const dataUrl = produceCroppedDataUrl();
   const origSrc = cropImage.src;
 
-  if (s.mode === 'frame' && s.targetId) {
+  if (s.mode === 'fill' && s.targetId) {
+    const item = getItem(s.targetId);
+    if (item && item.placeholder) {
+      const idx = currentItems().indexOf(item);
+      const created = createItem({
+        type: 'image', name: '照片',
+        x: item.x, y: item.y, w: item.w, h: item.h, rotation: item.rotation || 0,
+        image: { src: dataUrl, crop, origSrc: origSrc },
+      });
+      if (idx >= 0) currentItems().splice(idx, 1);
+      select(created.id);
+      scheduleSave();
+    }
+  } else if (s.mode === 'frame' && s.targetId) {
     const item = getItem(s.targetId);
     if (item && item.frame) { item.frame.photo = dataUrl; select(s.targetId); scheduleSave(); }
   } else if (s.mode === 'recrop' && s.targetId) {
@@ -1150,12 +1172,22 @@ function startFramePhoto() {
   $('#fileInput').click();
 }
 
+let pendingFillId = null; // 模板空格子补图的目标占位元素
+
+function fillPlaceholder(id) {
+  pendingFillId = id;
+  $('#fileInput').click();
+}
+
 function onFileSelected(e) {
   const file = e.target.files && e.target.files[0];
   e.target.value = '';
   if (!file) return;
   readFileAsDataURL(file).then((dataUrl) => {
-    if (pendingFrameTarget) {
+    if (pendingFillId) {
+      openCropModal(dataUrl, { mode: 'fill', targetId: pendingFillId });
+      pendingFillId = null;
+    } else if (pendingFrameTarget) {
       openCropModal(dataUrl, { mode: 'frame', targetId: pendingFrameTarget });
       pendingFrameTarget = null;
     } else {
@@ -1163,6 +1195,7 @@ function onFileSelected(e) {
       openCropModal(dataUrl, { mode: 'new' });
     }
   }).catch((err) => {
+    pendingFillId = null;
     pendingFrameTarget = null;
     alert(err && err.message ? err.message : '读取文件失败。');
   });
@@ -1198,11 +1231,19 @@ const TEMPLATES = [
     blocks: [{ l: 0, t: 0, w: 48.5, h: 100 }, { l: 51.5, t: 0, w: 48.5, h: 100 }] },
   { id: 'split2h', name: '分屏 · 上下', min: 2,
     blocks: [{ l: 0, t: 0, w: 100, h: 48.5 }, { l: 0, t: 51.5, w: 100, h: 48.5 }] },
+  { id: 'mix3', name: '一大两小', min: 3,
+    blocks: [{ l: 0, t: 0, w: 46, h: 100 }, { l: 50, t: 0, w: 50, h: 48.5 }, { l: 50, t: 51.5, w: 50, h: 48.5 }] },
   { id: 'grid3', name: '三宫格', min: 3,
     blocks: [{ l: 0, t: 0, w: 100, h: 62 }, { l: 0, t: 65, w: 48.5, h: 35 }, { l: 51.5, t: 65, w: 48.5, h: 35 }] },
   { id: 'grid4', name: '四宫格', min: 4,
     blocks: [{ l: 0, t: 0, w: 48.5, h: 48.5 }, { l: 51.5, t: 0, w: 48.5, h: 48.5 },
              { l: 0, t: 51.5, w: 48.5, h: 48.5 }, { l: 51.5, t: 51.5, w: 48.5, h: 48.5 }] },
+  { id: 'grid5', name: '五宫格', min: 5,
+    blocks: [{ l: 0, t: 0, w: 32, h: 48.5 }, { l: 34, t: 0, w: 32, h: 48.5 }, { l: 68, t: 0, w: 32, h: 48.5 },
+             { l: 16.5, t: 51.5, w: 32, h: 48.5 }, { l: 51.5, t: 51.5, w: 32, h: 48.5 }] },
+  { id: 'grid6', name: '六宫格', min: 6,
+    blocks: [{ l: 0, t: 0, w: 32, h: 48.5 }, { l: 34, t: 0, w: 32, h: 48.5 }, { l: 68, t: 0, w: 32, h: 48.5 },
+             { l: 0, t: 51.5, w: 32, h: 48.5 }, { l: 34, t: 51.5, w: 32, h: 48.5 }, { l: 68, t: 51.5, w: 32, h: 48.5 }] },
   { id: 'poster', name: '海报', min: 1,
     blocks: [{ l: 0, t: 10, w: 100, h: 3 }, { l: 12, t: 18, w: 76, h: 62 }, { l: 0, t: 86, w: 100, h: 3 }] },
 ];
@@ -1222,16 +1263,13 @@ function renderTemplateCards() {
 function updateTemplateSection() {
   const sec = $('#templateSection');
   if (!sec) return;
-  const show = uploadedPhotos.length >= 2;
-  sec.hidden = !show;
-  if (show) renderTemplateCards();
+  renderTemplateCards(); // 拼图模板：常显，空位点击补照片
 }
 
 function buildTemplateItems(tplId, photos) {
   const s = pageSize();
   const w = s.w, h = s.h;
   const m = Math.round(Math.min(w, h) * 0.04);
-  const g = Math.round(m * 0.5);
   const innerW = w - 2 * m, innerH = h - 2 * m;
 
   const imgItem = (src, name, x, y, pw, ph) => createItem({
@@ -1239,48 +1277,42 @@ function buildTemplateItems(tplId, photos) {
     image: { src, crop: null, origSrc: src },
   });
 
-  if (tplId === 'split2v') {
-    const pw = (innerW - g) / 2;
-    return [imgItem(photos[0].src, '照片', m, m, pw, innerH),
-            imgItem(photos[1].src, '照片', m + pw + g, m, pw, innerH)];
-  }
-  if (tplId === 'split2h') {
-    const ph = (innerH - g) / 2;
-    return [imgItem(photos[0].src, '照片', m, m, innerW, ph),
-            imgItem(photos[1].src, '照片', m, m + ph + g, innerW, ph)];
-  }
-  if (tplId === 'grid3') {
-    const topH = innerH * 0.62, botH = innerH * 0.38 - g;
-    const pw = (innerW - g) / 2;
-    return [imgItem(photos[0].src, '照片', m, m, innerW, topH),
-            imgItem(photos[1].src, '照片', m, m + topH + g, pw, botH),
-            imgItem(photos[2].src, '照片', m + pw + g, m + topH + g, pw, botH)];
-  }
-  if (tplId === 'grid4') {
-    const pw = (innerW - g) / 2, ph = (innerH - g) / 2;
-    return [imgItem(photos[0].src, '照片', m, m, pw, ph),
-            imgItem(photos[1].src, '照片', m + pw + g, m, pw, ph),
-            imgItem(photos[2].src, '照片', m, m + ph + g, pw, ph),
-            imgItem(photos[3].src, '照片', m + pw + g, m + ph + g, pw, ph)];
-  }
+  const blockItem = (b, i) => {
+    const x = m + b.l / 100 * innerW;
+    const y = m + b.t / 100 * innerH;
+    const bw = b.w / 100 * innerW;
+    const bh = b.h / 100 * innerH;
+    const photo = photos[i];
+    if (photo) {
+      return imgItem(photo.src, '照片', x, y, bw, bh);
+    }
+    // 空格子占位：点击后上传照片填充
+    return createItem({
+      type: 'shape', name: '上传照片', x: x + bw / 2, y: y + bh / 2, w: bw, h: bh,
+      placeholder: true,
+    });
+  };
+
   if (tplId === 'poster') {
     const date = new Date();
     const dateStr = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
     return [
       createItem({ type: 'shape', name: '背景', x: w / 2, y: h / 2, w, h, shape: { kind: 'rect', fill: '#fbf3e4', stroke: 'none', strokeWidth: 0 } }),
       createItem({ type: 'text', name: '标题', x: w / 2, y: h * 0.10, w: innerW, h: h * 0.12, text: { content: 'Details of Today', fontSize: Math.round(w * 0.055), fill: '#4b3a33', fontFamily: FONTS[0].value, bold: true } }),
-      imgItem(photos[0].src, '照片', m, h * 0.20, innerW, h * 0.52),
+      (photos[0] ? imgItem(photos[0].src, '照片', m, h * 0.20, innerW, h * 0.52)
+        : createItem({ type: 'shape', name: '上传照片', x: w / 2, y: h * 0.46, w: innerW, h: h * 0.52, placeholder: true })),
       createItem({ type: 'text', name: '日期', x: w / 2, y: h * 0.86, w: innerW, h: h * 0.05, text: { content: dateStr, fontSize: Math.round(w * 0.03), fill: '#8a7568', fontFamily: FONTS[0].value, bold: false } }),
     ];
   }
-  return [];
+  const tpl = TEMPLATES.find((t) => t.id === tplId);
+  if (!tpl) return [];
+  return tpl.blocks.map((b, i) => blockItem(b, i));
 }
 
 function applyTemplate(tplId) {
   const tpl = TEMPLATES.find((t) => t.id === tplId);
   if (!tpl) return;
-  const photos = uploadedPhotos.slice(0, tpl.min);
-  if (photos.length < tpl.min) { alert(`该模板需要至少 ${tpl.min} 张照片`); return; }
+  const photos = uploadedPhotos.slice();
   if (currentItems().length && !confirm('将用模板替换当前页的全部内容，继续？')) return;
   state.pages[state.currentPage].items = [];
   state.selection = null;
@@ -1296,6 +1328,7 @@ function exportSvgClone() {
   const node = stage.cloneNode(true);
   const ui = node.querySelector('#selection-ui');
   if (ui) ui.remove();
+  node.style.transform = ''; // 导出不携带视图缩放
   const s = pageSize();
   node.setAttribute('width', s.w);
   node.setAttribute('height', s.h);
@@ -1489,6 +1522,33 @@ function pageSize() {
 function applyPageSizeToStage() {
   const s = pageSize();
   stage.setAttribute('viewBox', `0 0 ${s.w} ${s.h}`);
+  zoomSet(1); // 切换画布尺寸后回到 100%
+}
+
+/* ---------------- 画布缩放（视图级，不影响数据） ---------------- */
+let zoom = 1;
+const ZOOM_MIN = 0.25, ZOOM_MAX = 4;
+
+function applyZoom() {
+  stage.style.transformOrigin = 'center center';
+  stage.style.transform = `scale(${zoom})`;
+  const pct = $('#zoomPct');
+  if (pct) pct.textContent = Math.round(zoom * 100) + '%';
+  $('#btnZoomOut').disabled = zoom <= ZOOM_MIN;
+  $('#btnZoomIn').disabled = zoom >= ZOOM_MAX;
+}
+
+function zoomSet(z) {
+  zoom = clamp(z, ZOOM_MIN, ZOOM_MAX);
+  applyZoom();
+}
+
+function zoomBy(factor) {
+  zoomSet(zoom * factor);
+}
+
+function zoomReset() {
+  zoomSet(1);
 }
 
 function setPageSize(w, h) {
@@ -1709,6 +1769,14 @@ function init() {
 
   // 画布交互
   stage.addEventListener('pointerdown', onStagePointerDown);
+  stage.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
+  }, { passive: false });
+  $('#btnZoomIn').addEventListener('click', () => zoomBy(1.25));
+  $('#btnZoomOut').addEventListener('click', () => zoomBy(1 / 1.25));
+  $('#zoomPct').addEventListener('click', zoomReset);
   window.addEventListener('pointermove', (e) => {
     if (canvasOp) handleCanvasMove(e);
     if (cropOp) handleCropMove(e);
@@ -1759,6 +1827,7 @@ function init() {
 
   // 上传
   $('#btnUpload').addEventListener('click', () => { pendingFrameTarget = null; $('#fileInput').click(); });
+  renderTemplateCards(); // 拼图模板常显（无需先上传）
   $('#fileInput').addEventListener('change', onFileSelected);
   $('#dropzone').addEventListener('click', () => { pendingFrameTarget = null; $('#fileInput').click(); });
   $('#dropzone').addEventListener('dragover', (e) => { e.preventDefault(); $('#dropzone').classList.add('drag'); });

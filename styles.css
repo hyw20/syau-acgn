@@ -415,6 +415,35 @@ button { font-family: var(--font); }
 
 #stage.dragging { cursor: grabbing; }
 
+.zoom-bar {
+  position: absolute;
+  top: 46px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 250, 242, .94);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 6px;
+  box-shadow: var(--shadow);
+  z-index: 5;
+}
+
+.zoom-pct {
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--ink);
+  min-width: 46px;
+  text-align: center;
+  cursor: pointer;
+  font-family: var(--font);
+}
+
+.zoom-pct:hover { color: var(--accent-deep); }
+.zoom-bar .mini-btn:disabled { opacity: .4; cursor: default; }
+
 .canvas-hint {
   position: absolute;
   top: 8px;
