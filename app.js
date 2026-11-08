@@ -371,9 +371,33 @@ function createItem(partial) {
 }
 
 /* ---------------- 元素渲染 ---------------- */
+/* 图层混合模式：SVG/CSS 标准支持的 16 种（对应绘画软件图层模式命名） */
+const BLEND_MODES = [
+  { value: 'normal', label: '正常' },
+  { value: 'multiply', label: '正片叠底' },
+  { value: 'screen', label: '滤色' },
+  { value: 'overlay', label: '叠加' },
+  { value: 'darken', label: '变暗' },
+  { value: 'lighten', label: '变亮' },
+  { value: 'color-dodge', label: '颜色减淡' },
+  { value: 'color-burn', label: '颜色加深' },
+  { value: 'hard-light', label: '强光' },
+  { value: 'soft-light', label: '柔光' },
+  { value: 'difference', label: '差值' },
+  { value: 'exclusion', label: '排除' },
+  { value: 'hue', label: '色相' },
+  { value: 'saturation', label: '饱和度' },
+  { value: 'color', label: '颜色' },
+  { value: 'luminosity', label: '明度' },
+];
+
 function renderItem(item) {
   const t = `translate(${item.x} ${item.y}) rotate(${item.rotation || 0})`;
-  const wrap = `<g class="layer" data-id="${item.id}" transform="${t}">`;
+  // 图层通用属性：混合模式 + 不透明度（与绘画软件图层功能一致）
+  const blend = item.blend && item.blend !== 'normal' ? `mix-blend-mode:${item.blend};` : '';
+  const op = item.opacity != null && item.opacity < 100 ? `opacity:${(item.opacity / 100).toFixed(2)};` : '';
+  const style = blend || op ? ` style="${blend}${op}"` : '';
+  const wrap = `<g class="layer" data-id="${item.id}" transform="${t}"${style}>`;
 
   // 模板空格子占位：虚线框 + 「＋」，点击上传照片
   if (item.placeholder) {
@@ -602,6 +626,17 @@ function renderProps() {
         <span class="prop-hint">${Math.round(normAngle(sel.rotation))}°</span>
       </div>
     </div>`;
+
+  // 图层模式（绘画软件同款混合模式）+ 不透明度
+  html += `<div class="prop-row"><label>图层模式</label><select data-field="blend">
+    ${BLEND_MODES.map((m) => `<option value="${m.value}" ${(sel.blend || 'normal') === m.value ? 'selected' : ''}>${m.label}</option>`).join('')}
+  </select></div>`;
+  html += `<div class="prop-row"><label>不透明度</label>
+    <div class="prop-inline">
+      <input type="range" data-field="opacity" min="0" max="100" value="${sel.opacity == null ? 100 : Math.round(sel.opacity)}">
+      <span class="prop-hint">${sel.opacity == null ? 100 : Math.round(sel.opacity)}%</span>
+    </div>
+  </div>`;
 
   if (sel.type === 'shape') {
     const s = sel.shape || {};
@@ -954,9 +989,16 @@ function onPropInput(e) {
   else if (field === 'fontSize') { const v = num(); if (v !== null) { sel.text = sel.text || {}; sel.text.fontSize = v; } }
   else if (field === 'fontFamily') { sel.text = sel.text || {}; sel.text.fontFamily = val; }
   else if (field === 'bold') { sel.text = sel.text || {}; sel.text.bold = val; }
+  else if (field === 'blend') { sel.blend = BLEND_MODES.some((m) => m.value === val) ? val : 'normal'; }
+  else if (field === 'opacity') { const v = num(); if (v !== null) sel.opacity = Math.max(0, Math.min(100, Math.round(v))); }
 
   redraw();
   scheduleSave();
+  // 滑块旁的百分比提示跟随更新（不重建面板避免打断拖动）
+  if (field === 'opacity') {
+    const hint = el.parentElement && el.parentElement.querySelector('.prop-hint');
+    if (hint) hint.textContent = Math.round(sel.opacity) + '%';
+  }
 }
 
 function onPropClick(e) {
