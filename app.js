@@ -23,6 +23,25 @@ function loadImage(src) {
   });
 }
 
+const MAX_LOCAL_IMAGE_BYTES = 15 * 1024 * 1024;
+
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//i.test(file.type)) {
+      reject(new Error('请选择图片文件'));
+      return;
+    }
+    if (file.size > MAX_LOCAL_IMAGE_BYTES) {
+      reject(new Error('图片不能超过 15MB'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('读取图片失败'));
+    reader.readAsDataURL(file);
+  });
+}
+
 
 
 /* ---------------- 页面尺寸 / 背景 / 字体 ---------------- */
@@ -1073,9 +1092,13 @@ function onFileSelected(e) {
       openCropModal(dataUrl, { mode: 'frame', targetId: pendingFrameTarget });
       pendingFrameTarget = null;
     } else {
+      addUploadItem(dataUrl, file.name);
       openCropModal(dataUrl, { mode: 'new' });
     }
-  }).catch(() => alert('读取文件失败。'));
+  }).catch((err) => {
+    pendingFrameTarget = null;
+    alert(err && err.message ? err.message : '读取文件失败。');
+  });
 }
 
 function addUploadItem(src, name) {
@@ -1095,7 +1118,7 @@ function handleDrop(e) {
   readFileAsDataURL(file).then((dataUrl) => {
     addUploadItem(dataUrl, file.name);
     openCropModal(dataUrl, { mode: 'new' });
-  });
+  }).catch((err) => alert(err && err.message ? err.message : '读取文件失败。'));
 }
 
 /* ---------------- 导出 ---------------- */
