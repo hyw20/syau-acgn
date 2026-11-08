@@ -401,9 +401,9 @@ button { font-family: var(--font); }
   justify-content: center;
 }
 
-#stage {
+#stage, #stageR {
   height: 100%;
-  max-width: 100%;
+  max-width: none;
   box-shadow: 0 10px 40px rgba(60, 40, 25, .35);
   border-radius: 2px;
   background: #fff;
@@ -413,7 +413,72 @@ button { font-family: var(--font); }
   -webkit-user-select: none;
 }
 
-#stage.dragging { cursor: grabbing; }
+#stage.dragging, #stageR.dragging { cursor: grabbing; }
+
+/* ============ 双页平铺（≥2 页时像翻开的手账本） ============ */
+.spread {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  height: 100%;
+  max-width: 100%;
+}
+
+.page-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* 双页时间隙收紧到 24px（两段 gap + 2px 中缝 = 24px），贴合成书脊 */
+.two-page .spread { gap: 11px; }
+
+/* 中缝：书脊投在左右页边缘的阴影 */
+.spread-gutter {
+  position: relative;
+  align-self: stretch;
+  width: 2px;
+  flex-shrink: 0;
+  background: rgba(90, 60, 40, .12);
+}
+
+.spread-gutter::before,
+.spread-gutter::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+}
+
+.spread-gutter::before {
+  right: 100%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(60, 40, 25, .22));
+}
+
+.spread-gutter::after {
+  left: 100%;
+  background: linear-gradient(270deg, rgba(255, 255, 255, 0), rgba(60, 40, 25, .22));
+}
+
+.page-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 12px;
+  font-size: 11px;
+  color: #9a8577;
+  background: rgba(255, 250, 242, .85);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 9px;
+  pointer-events: none;
+  font-family: var(--font);
+  z-index: 4;
+}
 
 .zoom-bar {
   position: absolute;
@@ -529,13 +594,13 @@ button { font-family: var(--font); }
 /* 翻页动画 */
 .canvas-stage { perspective: 1400px; }
 
-#stage.flip-out {
+.spread.flip-out {
   transition: transform .18s ease, opacity .18s ease;
   transform: translateX(-46px) rotateY(-10deg);
   opacity: .25;
 }
 
-#stage.flip-in {
+.spread.flip-in {
   animation: page-flip-in .24s ease;
 }
 
@@ -800,10 +865,15 @@ button { font-family: var(--font); }
   padding: 1px 0;
 }
 
+.page-wrap:first-child .page-badge { left: 12px; right: auto; }
+
+/* 单页模式下不显示页码角标（pager 已有页码） */
+.canvas-stage:not(.two-page) .page-badge { display: none; }
+
 /* ============ SVG 元素 ============ */
-#stage .layer { cursor: move; }
-#stage .layer text { cursor: move; }
-#stage .layer.image-layer { cursor: grab; }
+#stage .layer, #stageR .layer { cursor: move; }
+#stage .layer text, #stageR .layer text { cursor: move; }
+#stage .layer.image-layer, #stageR .layer.image-layer { cursor: grab; }
 
 #selection-ui .handle {
   fill: #fff;

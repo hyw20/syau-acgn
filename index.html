@@ -111,7 +111,17 @@
       <div class="canvas-hint" id="canvasHint">拖动元素 · 角落缩放 · 圆点旋转 · Ctrl+滚轮缩放画布</div>
 
       <div class="canvas-stage" id="canvasStage">
-        <svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1400"></svg>
+        <div class="spread" id="spread">
+          <div class="page-wrap">
+            <svg id="stage" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1400"></svg>
+            <div class="page-badge" id="badgeL"></div>
+          </div>
+          <div class="spread-gutter" id="spreadGutter" hidden></div>
+          <div class="page-wrap" id="wrapR" hidden>
+            <svg id="stageR" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1400"></svg>
+            <div class="page-badge" id="badgeR"></div>
+          </div>
+        </div>
         <div class="zoom-bar" id="zoomBar">
           <button class="mini-btn" id="btnZoomOut" title="缩小">−</button>
           <button class="zoom-pct" id="zoomPct" title="点击恢复 100%">100%</button>

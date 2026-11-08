@@ -273,6 +273,12 @@ let state = {
 };
 
 const stage = $('#stage');
+const stageR = $('#stageR');
+const spreadEl = $('#spread');
+const wrapR = $('#wrapR');
+const spreadGutter = $('#spreadGutter');
+const badgeL = $('#badgeL');
+const badgeR = $('#badgeR');
 const svgNS = 'http://www.w3.org/2000/svg';
 
 /* ---------------- 多本手账存取 ---------------- */
@@ -431,8 +437,8 @@ function renderItem(item) {
 function m(w, h) { return Math.min(w, h); }
 
 /* ---------------- 背景渲染 ---------------- */
-function renderBackground() {
-  const s = pageSize();
+function renderBackground(idx) {
+  const s = pageSize(idx);
   const bg = state.page.bg || { color: '#fdf6e3', pattern: null };
   let defs = '';
   if (bg.pattern) {
@@ -451,21 +457,66 @@ function renderBackground() {
   };
 }
 
-/* ---------------- 画布重绘 ---------------- */
+/* ---------------- 画布重绘（双页平铺） ---------------- */
+function renderPage(el, idx) {
+  if (!el) return;
+  if (idx < 0) { el.innerHTML = ''; return; }
+  const bg = renderBackground(idx);
+  const layers = currentItemsOf(idx).filter((i) => !i.hidden).map(renderItem).join('');
+  // 选择框 UI 只存在于活动页
+  const ui = idx === state.currentPage ? '<g id="selection-ui"></g>' : '';
+  el.innerHTML = bg.defs + bg.rect + layers + ui;
+  const s = pageSize(idx);
+  el.setAttribute('viewBox', `0 0 ${s.w} ${s.h}`);
+}
+
 function redraw() {
-  const bg = renderBackground();
-  const layers = currentItems().filter((i) => !i.hidden).map(renderItem).join('');
-  stage.innerHTML = bg.defs + bg.rect + layers + `<g id="selection-ui"></g>`;
+  const [li, ri] = spreadIndexes();
+  renderPage(stage, li);
+  renderPage(stageR, ri);
+  wrapR.hidden = ri < 0;
+  spreadGutter.hidden = ri < 0;
+  if (badgeL) badgeL.textContent = li >= 0 ? String(li + 1) : '';
+  if (badgeR) badgeR.textContent = ri >= 0 ? String(ri + 1) : '';
+  $('#canvasStage').classList.toggle('two-page', ri >= 0);
+  fitSpread();
   renderSelection();
 }
 
+// 让平铺的两页整体适配可视区（不溢出、不留白）
+let fitKey = '';
+function fitSpread() {
+  if (!spreadEl) return;
+  const box = $('#canvasStage');
+  if (!box) return;
+  const [li, ri] = spreadIndexes();
+  if (li < 0) return;
+  const pl = pageSize(li);
+  const pr = ri >= 0 ? pageSize(ri) : null;
+  const key = [li, ri, pl.w, pl.h, pr ? pr.w : 0, pr ? pr.h : 0, box.clientWidth, box.clientHeight].join('|');
+  if (key === fitKey) return;
+  fitKey = key;
+  const aspL = pl.w / pl.h;
+  const aspR = pr ? pr.w / pr.h : 0;
+  const gap = ri >= 0 ? 24 : 0;
+  const availW = Math.max(120, box.clientWidth - gap - 8);
+  const availH = Math.max(120, box.clientHeight - 8);
+  let h = availH;
+  const needW = h * (aspL + aspR);
+  if (needW > availW) h = availW / (aspL + aspR);
+  stage.style.height = h + 'px';
+  stage.style.width = Math.round(h * aspL) + 'px';
+  stageR.style.height = h + 'px';
+  stageR.style.width = (pr ? Math.round(h * aspR) : 0) + 'px';
+}
+
 function screenScale() {
-  const ctm = stage.getScreenCTM && stage.getScreenCTM();
+  const ctm = activeStageEl().getScreenCTM && activeStageEl().getScreenCTM();
   return (ctm && ctm.a) || 1;
 }
 
 function renderSelection() {
-  const ui = $('#selection-ui');
+  const ui = activeStageEl().querySelector('#selection-ui');
   if (!ui) return;
   const sel = state.selection ? getItem(state.selection) : null;
   if (!sel || sel.hidden) { ui.innerHTML = ''; return; }
@@ -601,7 +652,9 @@ function renderProps() {
 let canvasOp = null;
 
 function svgPoint(e) {
-  const ctm = stage.getScreenCTM && stage.getScreenCTM();
+  // 永远用活动页的坐标系（点击另一页时会先激活它；旧节点被重建也不受影响）
+  const svgEl = activeStageEl();
+  const ctm = svgEl.getScreenCTM && svgEl.getScreenCTM();
   if (!ctm) return { x: 0, y: 0 };
   const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
   return { x: p.x, y: p.y };
@@ -617,6 +670,15 @@ function svgToLocal(e, item) {
 
 function onStagePointerDown(e) {
   if (isFlipping) return;
+  // 点到另一页（非活动页）：先把它设为活动页，然后照常处理这次点击
+  const svgEl = e.target && e.target.ownerSVGElement;
+  if (svgEl && activeStageEl && svgEl !== activeStageEl()) {
+    const [li, ri] = spreadIndexes();
+    const targetIdx = svgEl === stageR ? ri : li;
+    if (targetIdx >= 0 && targetIdx !== state.currentPage) {
+      activatePage(targetIdx);
+    }
+  }
   const handle = e.target.closest('.handle');
   if (handle && state.selection) {
     e.preventDefault();
@@ -642,7 +704,7 @@ function startDrag(e, id) {
   const item = getItem(id);
   if (!item) return;
   canvasOp = { type: 'drag', item, startP: svgPoint(e), startC: { x: item.x, y: item.y } };
-  stage.classList.add('dragging');
+  activeStageEl().classList.add('dragging');
 }
 
 function startResize(e, dir) {
@@ -709,7 +771,7 @@ function handleCanvasMove(e) {
 function handleCanvasUp() {
   if (!canvasOp) return;
   canvasOp = null;
-  stage.classList.remove('dragging');
+  activeStageEl().classList.remove('dragging');
   renderProps();
   scheduleSave();
 }
@@ -758,13 +820,41 @@ function deleteSelection() {
 /* ---------------- 翻页 ---------------- */
 let isFlipping = false;
 
+// 点击另一页时激活它（不翻对，只切换编辑目标）
+function activatePage(idx) {
+  if (idx === state.currentPage || isFlipping) return;
+  state.currentPage = idx;
+  state.lastPage = idx;
+  state.selection = null;
+  redraw();
+  renderLayers();
+  renderProps();
+  updatePager();
+  scheduleSave();
+}
+
 function updatePager() {
+  const n = state.pages.length;
+  const [li, ri] = spreadIndexes();
   const info = $('#pagerInfo');
-  if (info) info.textContent = `${state.currentPage + 1} / ${state.pages.length}`;
+  if (info) info.textContent = ri >= 0 ? `${li + 1}-${ri + 1} / ${n}` : `${li + 1} / ${n}`;
   const prev = $('#btnPrevPage'), next = $('#btnNextPage'), del = $('#btnDelPage');
-  if (prev) prev.disabled = state.currentPage <= 0;
-  if (next) next.disabled = state.currentPage >= state.pages.length - 1;
-  if (del) del.disabled = state.pages.length <= 1;
+  if (prev) prev.disabled = li <= 0;
+  if (next) next.disabled = ri < 0;
+  if (del) del.disabled = n <= 1;
+}
+
+// 成对翻页：› 到下一对左页，‹ 回上一对左页
+function pageTurn(dir) {
+  const n = state.pages.length;
+  const [li, ri] = spreadIndexes();
+  let target;
+  if (dir > 0) target = ri >= 0 ? ri + 1 : li; // 已在最后一页则不动（按钮会禁用）
+  else target = li - 2;
+  if (target < 0) target = 0;
+  if (target >= n) target = n - 1;
+  if (target === state.currentPage) return;
+  goToPage(target, true);
 }
 
 function goToPage(idx, animate = true) {
@@ -776,7 +866,7 @@ function goToPage(idx, animate = true) {
 
   if (animate) {
     isFlipping = true;
-    stage.classList.add('flip-out');
+    spreadEl.classList.add('flip-out');
     setTimeout(() => {
       state.currentPage = idx;
       state.lastPage = idx;
@@ -788,10 +878,10 @@ function goToPage(idx, animate = true) {
       renderProps();
       updatePager();
       scheduleSave();
-      stage.classList.remove('flip-out');
-      stage.classList.add('flip-in');
+      spreadEl.classList.remove('flip-out');
+      spreadEl.classList.add('flip-in');
       setTimeout(() => {
-        stage.classList.remove('flip-in');
+        spreadEl.classList.remove('flip-in');
         isFlipping = false;
       }, 260);
     }, 190);
@@ -1325,7 +1415,8 @@ function applyTemplate(tplId) {
 
 /* ---------------- 导出 ---------------- */
 function exportSvgClone() {
-  const node = stage.cloneNode(true);
+  const src = activeStageEl();
+  const node = src.cloneNode(true);
   const ui = node.querySelector('#selection-ui');
   if (ui) ui.remove();
   node.style.transform = ''; // 导出不携带视图缩放
@@ -1512,16 +1603,41 @@ function applyBg(bg) {
   scheduleSave();
 }
 
-/* ---------------- 页面尺寸 ---------------- */
-// 当前页尺寸：每一页可独立设置，缺省时继承全局默认值
-function pageSize() {
-  const p = state.pages[state.currentPage];
+/* ---------------- 页面尺寸 / 双页展开 ---------------- */
+// 指定页尺寸：缺省时继承全局默认值
+function pageSize(idx) {
+  const p = state.pages[idx == null ? state.currentPage : idx];
   return { w: (p && p.w) || state.page.w, h: (p && p.h) || state.page.h };
 }
 
+function currentItemsOf(idx) {
+  const p = state.pages[idx];
+  return (p && p.items) || [];
+}
+
+// 当前展开对：左页 + 右页索引（0 起；-1 = 无右页/单页模式）
+function spreadIndexes() {
+  const n = state.pages.length;
+  let left = state.currentPage;
+  if (left % 2 === 1) left -= 1; // 左页总是偶数索引
+  const right = left + 1;
+  return [left, right < n ? right : -1];
+}
+
+// 当前活动页对应哪个 SVG
+function activeStageEl() {
+  const [, r] = spreadIndexes();
+  return r >= 0 && state.currentPage === r ? stageR : stage;
+}
+
 function applyPageSizeToStage() {
-  const s = pageSize();
-  stage.setAttribute('viewBox', `0 0 ${s.w} ${s.h}`);
+  const [li, ri] = spreadIndexes();
+  const sL = pageSize(li >= 0 ? li : 0);
+  stage.setAttribute('viewBox', `0 0 ${sL.w} ${sL.h}`);
+  if (ri >= 0) {
+    const sR = pageSize(ri);
+    stageR.setAttribute('viewBox', `0 0 ${sR.w} ${sR.h}`);
+  }
   zoomSet(1); // 切换画布尺寸后回到 100%
 }
 
@@ -1530,8 +1646,8 @@ let zoom = 1;
 const ZOOM_MIN = 0.25, ZOOM_MAX = 4;
 
 function applyZoom() {
-  stage.style.transformOrigin = 'center center';
-  stage.style.transform = `scale(${zoom})`;
+  spreadEl.style.transformOrigin = 'center center';
+  spreadEl.style.transform = `scale(${zoom})`;
   const pct = $('#zoomPct');
   if (pct) pct.textContent = Math.round(zoom * 100) + '%';
   $('#btnZoomOut').disabled = zoom <= ZOOM_MIN;
@@ -1769,14 +1885,18 @@ function init() {
 
   // 画布交互
   stage.addEventListener('pointerdown', onStagePointerDown);
-  stage.addEventListener('wheel', (e) => {
+  stageR.addEventListener('pointerdown', onStagePointerDown);
+  const onWheel = (e) => {
     if (!e.ctrlKey) return;
     e.preventDefault();
     zoomBy(e.deltaY < 0 ? 1.1 : 1 / 1.1);
-  }, { passive: false });
+  };
+  stage.addEventListener('wheel', onWheel, { passive: false });
+  stageR.addEventListener('wheel', onWheel, { passive: false });
   $('#btnZoomIn').addEventListener('click', () => zoomBy(1.25));
   $('#btnZoomOut').addEventListener('click', () => zoomBy(1 / 1.25));
   $('#zoomPct').addEventListener('click', zoomReset);
+  window.addEventListener('resize', () => fitSpread());
   window.addEventListener('pointermove', (e) => {
     if (canvasOp) handleCanvasMove(e);
     if (cropOp) handleCropMove(e);
@@ -1802,8 +1922,8 @@ function init() {
   $('#btnDelete').addEventListener('click', deleteSelection);
 
   // 翻页
-  $('#btnPrevPage').addEventListener('click', () => goToPage(state.currentPage - 1));
-  $('#btnNextPage').addEventListener('click', () => goToPage(state.currentPage + 1));
+  $('#btnPrevPage').addEventListener('click', () => pageTurn(-1));
+  $('#btnNextPage').addEventListener('click', () => pageTurn(1));
   $('#btnAddPage').addEventListener('click', addPage);
   $('#btnDelPage').addEventListener('click', delPage);
 
@@ -1948,6 +2068,12 @@ function init() {
     }
     showLastPageTip();
   }, 1400);
+
+  // 布局稳定后再适配一次平铺尺寸（首帧 clientWidth 可能还没算好）
+  requestAnimationFrame(() => {
+    fitKey = '';
+    fitSpread();
+  });
 }
 
 /* 打开固定首页后，提示上次翻到的页码（可点击跳转） */
