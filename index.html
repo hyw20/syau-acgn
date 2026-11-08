@@ -45,6 +45,7 @@
 
     <div class="top-actions">
       <div class="action-group">
+        <button class="btn" id="btnNewDoc" title="新建手账（选择画布大小）">🆕 新建</button>
         <label class="field-label">画布</label>
         <select id="pageSize" title="页面尺寸"></select>
       </div>
@@ -93,6 +94,10 @@
             把图片拖到这里<br><small>PNG / JPG / WebP / GIF / SVG</small>
           </div>
           <div class="upload-list" id="uploadList"></div>
+          <div class="tpl-section" id="templateSection" hidden>
+            <p class="pane-tip" style="margin-top:14px">多张照片拼接模板</p>
+            <div class="tpl-grid" id="templateCards"></div>
+          </div>
         </section>
       </div>
     </aside>
@@ -191,6 +196,32 @@
       <div class="bg-grid" id="bgGrid"></div>
       <div class="modal-foot">
         <button class="btn primary" data-close="bgModal">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新建手账（选择画布大小） -->
+  <div class="modal-backdrop" id="newDocModal" hidden>
+    <div class="modal newdoc-modal">
+      <div class="modal-head">
+        <span>新建手账</span>
+        <button class="close-btn" data-close="newDocModal">✕</button>
+      </div>
+      <div class="newdoc-body">
+        <p class="pane-tip">选择画布大小，就像新建一张画纸</p>
+        <div class="size-grid" id="sizeGrid"></div>
+        <div class="prop-row">
+          <label>自定义（宽 × 高，单位 px）</label>
+          <div class="prop-inline">
+            <input type="number" id="customW" min="200" max="4000" step="10" value="1000">
+            <span>×</span>
+            <input type="number" id="customH" min="200" max="4000" step="10" value="1400">
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="newDocModal">取消</button>
+        <button class="btn primary" id="btnCreateDoc">创建</button>
       </div>
     </div>
   </div>

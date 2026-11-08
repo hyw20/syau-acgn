@@ -836,3 +836,93 @@ button { font-family: var(--font); }
   0%, 100% { transform: translateY(0); }
   40% { transform: translateY(-9px); }
 }
+
+/* ============ 新建手账（画布大小选择） ============ */
+.newdoc-modal { width: min(600px, 94vw); }
+
+.newdoc-body { padding: 18px 20px; }
+
+.size-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.size-card {
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .15s ease, background .15s ease, transform .08s ease;
+}
+
+.size-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+.size-card.active {
+  border-color: var(--accent);
+  background: #fff0f2;
+}
+
+.size-preview {
+  width: 100%;
+  background: #fdf6e3;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-bottom: 6px;
+}
+
+.size-name {
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+/* ============ 多图拼接模板 ============ */
+.tpl-section { margin-top: 4px; }
+
+.tpl-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.tpl-card {
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  padding: 6px;
+  cursor: pointer;
+  transition: border-color .15s ease, transform .08s ease, box-shadow .15s ease;
+}
+
+.tpl-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+
+.tpl-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  background: #fdf6e3;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.tpl-block {
+  position: absolute;
+  background: linear-gradient(135deg, #f3c8cd, #eeb4bb);
+  border-radius: 2px;
+  border: 1px solid #fff;
+}
+
+.tpl-name {
+  font-size: 11px;
+  color: var(--ink-soft);
+  text-align: center;
+}

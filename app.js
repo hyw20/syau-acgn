@@ -1101,6 +1101,8 @@ function onFileSelected(e) {
   });
 }
 
+let uploadedPhotos = []; // { src, name }，用于多图拼接模板
+
 function addUploadItem(src, name) {
   const list = $('#uploadList');
   const div = document.createElement('div');
@@ -1108,6 +1110,8 @@ function addUploadItem(src, name) {
   div.innerHTML = `<img class="upload-thumb" src="${src}" alt=""><span class="u-name">${esc(name)}</span>`;
   div.addEventListener('click', () => openCropModal(src, { mode: 'new' }));
   list.prepend(div);
+  uploadedPhotos.push({ src, name });
+  updateTemplateSection();
 }
 
 function handleDrop(e) {
@@ -1119,6 +1123,104 @@ function handleDrop(e) {
     addUploadItem(dataUrl, file.name);
     openCropModal(dataUrl, { mode: 'new' });
   }).catch((err) => alert(err && err.message ? err.message : '读取文件失败。'));
+}
+
+/* ---------------- 多图拼接模板 ---------------- */
+const TEMPLATES = [
+  { id: 'split2v', name: '分屏 · 左右', min: 2,
+    blocks: [{ l: 0, t: 0, w: 48.5, h: 100 }, { l: 51.5, t: 0, w: 48.5, h: 100 }] },
+  { id: 'split2h', name: '分屏 · 上下', min: 2,
+    blocks: [{ l: 0, t: 0, w: 100, h: 48.5 }, { l: 0, t: 51.5, w: 100, h: 48.5 }] },
+  { id: 'grid3', name: '三宫格', min: 3,
+    blocks: [{ l: 0, t: 0, w: 100, h: 62 }, { l: 0, t: 65, w: 48.5, h: 35 }, { l: 51.5, t: 65, w: 48.5, h: 35 }] },
+  { id: 'grid4', name: '四宫格', min: 4,
+    blocks: [{ l: 0, t: 0, w: 48.5, h: 48.5 }, { l: 51.5, t: 0, w: 48.5, h: 48.5 },
+             { l: 0, t: 51.5, w: 48.5, h: 48.5 }, { l: 51.5, t: 51.5, w: 48.5, h: 48.5 }] },
+  { id: 'poster', name: '海报', min: 1,
+    blocks: [{ l: 0, t: 10, w: 100, h: 3 }, { l: 12, t: 18, w: 76, h: 62 }, { l: 0, t: 86, w: 100, h: 3 }] },
+];
+
+function renderTemplateCards() {
+  const grid = $('#templateCards');
+  grid.innerHTML = TEMPLATES.map((t) => {
+    const blocks = t.blocks.map((b) =>
+      `<i class="tpl-block" style="left:${b.l}%;top:${b.t}%;width:${b.w}%;height:${b.h}%"></i>`).join('');
+    return `<div class="tpl-card" data-tpl="${t.id}">
+      <div class="tpl-preview">${blocks}</div>
+      <div class="tpl-name">${t.name}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateTemplateSection() {
+  const sec = $('#templateSection');
+  if (!sec) return;
+  const show = uploadedPhotos.length >= 2;
+  sec.hidden = !show;
+  if (show) renderTemplateCards();
+}
+
+function buildTemplateItems(tplId, photos) {
+  const w = state.page.w, h = state.page.h;
+  const m = Math.round(Math.min(w, h) * 0.04);
+  const g = Math.round(m * 0.5);
+  const innerW = w - 2 * m, innerH = h - 2 * m;
+
+  const imgItem = (src, name, x, y, pw, ph) => createItem({
+    type: 'image', name: name || '照片', x: x + pw / 2, y: y + ph / 2, w: pw, h: ph,
+    image: { src, crop: null, origSrc: src },
+  });
+
+  if (tplId === 'split2v') {
+    const pw = (innerW - g) / 2;
+    return [imgItem(photos[0].src, '照片', m, m, pw, innerH),
+            imgItem(photos[1].src, '照片', m + pw + g, m, pw, innerH)];
+  }
+  if (tplId === 'split2h') {
+    const ph = (innerH - g) / 2;
+    return [imgItem(photos[0].src, '照片', m, m, innerW, ph),
+            imgItem(photos[1].src, '照片', m, m + ph + g, innerW, ph)];
+  }
+  if (tplId === 'grid3') {
+    const topH = innerH * 0.62, botH = innerH * 0.38 - g;
+    const pw = (innerW - g) / 2;
+    return [imgItem(photos[0].src, '照片', m, m, innerW, topH),
+            imgItem(photos[1].src, '照片', m, m + topH + g, pw, botH),
+            imgItem(photos[2].src, '照片', m + pw + g, m + topH + g, pw, botH)];
+  }
+  if (tplId === 'grid4') {
+    const pw = (innerW - g) / 2, ph = (innerH - g) / 2;
+    return [imgItem(photos[0].src, '照片', m, m, pw, ph),
+            imgItem(photos[1].src, '照片', m + pw + g, m, pw, ph),
+            imgItem(photos[2].src, '照片', m, m + ph + g, pw, ph),
+            imgItem(photos[3].src, '照片', m + pw + g, m + ph + g, pw, ph)];
+  }
+  if (tplId === 'poster') {
+    const date = new Date();
+    const dateStr = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDate()}`;
+    return [
+      createItem({ type: 'shape', name: '背景', x: w / 2, y: h / 2, w, h, shape: { kind: 'rect', fill: '#fbf3e4', stroke: 'none', strokeWidth: 0 } }),
+      createItem({ type: 'text', name: '标题', x: w / 2, y: h * 0.10, w: innerW, h: h * 0.12, text: { content: 'Details of Today', fontSize: Math.round(w * 0.055), fill: '#4b3a33', fontFamily: FONTS[0].value, bold: true } }),
+      imgItem(photos[0].src, '照片', m, h * 0.20, innerW, h * 0.52),
+      createItem({ type: 'text', name: '日期', x: w / 2, y: h * 0.86, w: innerW, h: h * 0.05, text: { content: dateStr, fontSize: Math.round(w * 0.03), fill: '#8a7568', fontFamily: FONTS[0].value, bold: false } }),
+    ];
+  }
+  return [];
+}
+
+function applyTemplate(tplId) {
+  const tpl = TEMPLATES.find((t) => t.id === tplId);
+  if (!tpl) return;
+  const photos = uploadedPhotos.slice(0, tpl.min);
+  if (photos.length < tpl.min) { alert(`该模板需要至少 ${tpl.min} 张照片`); return; }
+  if (currentItems().length && !confirm('将用模板替换当前页的全部内容，继续？')) return;
+  state.pages[state.currentPage].items = [];
+  state.selection = null;
+  buildTemplateItems(tplId, photos); // createItem 已按顺序推入当前页
+  redraw();
+  renderLayers();
+  renderProps();
+  scheduleSave();
 }
 
 /* ---------------- 导出 ---------------- */
@@ -1293,6 +1395,48 @@ function applyPageSizeToStage() {
   stage.setAttribute('viewBox', `0 0 ${state.page.w} ${state.page.h}`);
 }
 
+/* ---------------- 新建手账（选画布大小） ---------------- */
+function hasContent() {
+  return state.pages.some((p) => p.items && p.items.length > 0);
+}
+
+function renderSizeCards() {
+  const grid = $('#sizeGrid');
+  grid.innerHTML = PAGE_SIZES.map((p) => {
+    const ratio = (p.h / p.w * 100).toFixed(0);
+    return `<div class="size-card" data-w="${p.w}" data-h="${p.h}" style="--ratio:${ratio}%">
+      <div class="size-preview" style="aspect-ratio:${p.w}/${p.h}"></div>
+      <div class="size-name">${p.label}</div>
+    </div>`;
+  }).join('');
+}
+
+function openNewDoc() {
+  renderSizeCards();
+  $('#customW').value = state.page.w;
+  $('#customH').value = state.page.h;
+  $('#newDocModal').hidden = false;
+}
+
+function createNewDoc(w, h) {
+  w = clamp(Math.round(Number(w)) || 1000, 200, 4000);
+  h = clamp(Math.round(Number(h)) || 1400, 200, 4000);
+  if (hasContent() && !confirm('新建将清空当前手账的全部内容，继续？')) return;
+  state.page.w = w;
+  state.page.h = h;
+  state.pages = [{ items: [] }];
+  state.currentPage = 0;
+  state.lastPage = 0;
+  state.selection = null;
+  applyPageSizeToStage();
+  redraw();
+  renderLayers();
+  renderProps();
+  updatePager();
+  scheduleSave();
+  $('#newDocModal').hidden = true;
+}
+
 /* ---------------- 自动保存 ---------------- */
 let saveTimer = null;
 function scheduleSave() {
@@ -1340,41 +1484,6 @@ function loadSaved() {
   }
 }
 
-/* ---------------- 示例内容（首次打开） ---------------- */
-function seedDemo() {
-  state.pages = [
-    { items: [] },
-    { items: [] },
-    { items: [] },
-  ];
-  const cx = state.page.w / 2, cy = state.page.h / 2;
-  // 第 1 页：封面
-  state.currentPage = 0;
-  createItem({ type: 'text', name: '标题', x: cx, y: 200, w: 640, h: 130, text: { content: '嗨，这是我的自介页 👋', fontSize: 84, fill: '#4b3a33', fontFamily: FONTS[0].value, bold: true } });
-  createItem({ type: 'frame', name: '我的照片', x: cx, y: cy + 120, w: 420, h: 480, frame: { kind: 'polaroid', fill: '#ffffff', photo: null } });
-  createItem({ type: 'sticker', name: '小花', x: cx + 320, y: 260, w: 120, h: 120, sticker: { kind: 'flower', fill: '#ef8b98' } });
-  createItem({ type: 'sticker', name: '星星', x: cx - 320, y: 260, w: 100, h: 100, sticker: { kind: 'star', fill: '#f6c445' } });
-
-  // 第 2 页：自我介绍
-  state.currentPage = 1;
-  createItem({ type: 'text', name: '关于我', x: cx, y: 180, w: 500, h: 100, text: { content: '关于我 ✨', fontSize: 76, fill: '#4b3a33', fontFamily: FONTS[0].value, bold: true } });
-  createItem({ type: 'shape', name: '圆角矩形', x: cx, y: 560, w: 640, h: 360, shape: { kind: 'roundrect', fill: '#ffe9ec', stroke: 'none', strokeWidth: 2 } });
-  createItem({ type: 'text', name: '介绍', x: cx, y: 560, w: 560, h: 200, text: { content: '喜欢 ACG 和做手账\n把想说的话都贴在这里\n\n画风 / 音乐 / 小动物', fontSize: 46, fill: '#7a5a4a', fontFamily: FONTS[0].value, bold: false } });
-  createItem({ type: 'sticker', name: '爱心', x: cx + 360, y: 860, w: 110, h: 110, sticker: { kind: 'heart', fill: '#ef8b98' } });
-  createItem({ type: 'sticker', name: '笑脸', x: cx - 360, y: 860, w: 110, h: 110, sticker: { kind: 'smile', fill: '#ffd66b' } });
-
-  // 第 3 页：贴纸角
-  state.currentPage = 2;
-  createItem({ type: 'text', name: '谢谢观看', x: cx, y: 200, w: 500, h: 100, text: { content: '谢谢观看 💌', fontSize: 76, fill: '#4b3a33', fontFamily: FONTS[0].value, bold: true } });
-  createItem({ type: 'sticker', name: '小花', x: cx - 260, y: 520, w: 140, h: 140, sticker: { kind: 'flower', fill: '#ef8b98' } });
-  createItem({ type: 'sticker', name: '闪光', x: cx, y: 520, w: 120, h: 120, sticker: { kind: 'sparkle', fill: '#f6c445' } });
-  createItem({ type: 'sticker', name: '月亮', x: cx + 260, y: 520, w: 120, h: 120, sticker: { kind: 'moon', fill: '#7fb6c9' } });
-  createItem({ type: 'sticker', name: '蝴蝶结', x: cx, y: 900, w: 160, h: 160, sticker: { kind: 'ribbon', fill: '#ef8b98' } });
-
-  state.currentPage = 0;
-  state.lastPage = 0;
-}
-
 /* ---------------- 键盘 ---------------- */
 function onKeyDown(e) {
   const tag = (document.activeElement && document.activeElement.tagName) || '';
@@ -1412,7 +1521,16 @@ function init() {
   });
 
   const restored = loadSaved();
-  if (!restored) seedDemo();
+  if (!restored) {
+    // 首次打开：像画图软件一样，先选画布大小
+    applyPageSizeToStage();
+    renderAssetGrids();
+    redraw();
+    renderLayers();
+    renderProps();
+    updatePager();
+    openNewDoc();
+  }
 
   applyPageSizeToStage();
   renderAssetGrids();
@@ -1532,6 +1650,24 @@ function init() {
   $('#btnSaveProject').addEventListener('click', saveProject);
   $('#btnLoadProject').addEventListener('click', () => $('#jsonInput').click());
   $('#jsonInput').addEventListener('change', loadProjectFile);
+
+  // 新建手账 + 画布大小选择
+  $('#btnNewDoc').addEventListener('click', openNewDoc);
+  $('#sizeGrid').addEventListener('click', (e) => {
+    const card = e.target.closest('.size-card');
+    if (!card) return;
+    document.querySelectorAll('#sizeGrid .size-card').forEach((c) => c.classList.remove('active'));
+    card.classList.add('active');
+    $('#customW').value = card.dataset.w;
+    $('#customH').value = card.dataset.h;
+  });
+  $('#btnCreateDoc').addEventListener('click', () => createNewDoc($('#customW').value, $('#customH').value));
+
+  // 多图拼接模板
+  $('#templateCards').addEventListener('click', (e) => {
+    const card = e.target.closest('.tpl-card');
+    if (card) applyTemplate(card.dataset.tpl);
+  });
 
   // 顶部导航：登录按钮
   const navAuth = $('#navAuth');
