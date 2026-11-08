@@ -1795,6 +1795,17 @@ function init() {
   $('#btnLoadProject').addEventListener('click', () => $('#jsonInput').click());
   $('#jsonInput').addEventListener('change', loadProjectFile);
 
+  // 「⋯ 更多」下拉菜单
+  const moreWrap = $('#moreWrap');
+  const moreMenu = $('#moreMenu');
+  $('#btnMore').addEventListener('click', (e) => {
+    e.stopPropagation();
+    moreMenu.hidden = !moreMenu.hidden;
+  });
+  document.addEventListener('click', (e) => {
+    if (moreWrap && !moreWrap.contains(e.target)) moreMenu.hidden = true;
+  });
+
   // 新建手账 + 画布大小选择
   $('#btnNewDoc').addEventListener('click', openNewDoc);
   $('#sizeGrid').addEventListener('click', (e) => {

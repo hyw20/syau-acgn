@@ -100,6 +100,53 @@ button { font-family: var(--font); }
   margin-left: 4px;
 }
 
+.more-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 132px;
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(90, 60, 40, .16);
+  padding: 6px;
+  z-index: 60;
+}
+
+.more-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 9px 12px;
+  font-size: 13px;
+  color: var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.more-item:hover { background: #fff0e4; }
+
+.nav-auth {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+
+.nav-auth:hover { background: var(--ink); color: #fff; border-color: var(--ink); }
+
 .btn {
   border: 1px solid var(--line);
   background: #fffdf8;

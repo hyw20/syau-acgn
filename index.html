@@ -40,23 +40,27 @@
     <nav class="main-nav">
       <a class="nav-item active" href="/">手账</a>
       <a class="nav-item" href="/community.html">社区</a>
-      <button class="nav-item" id="navAuth">登录</button>
+      <button class="nav-item nav-auth" id="navAuth">登录</button>
     </nav>
 
     <div class="top-actions">
       <div class="action-group">
-        <button class="btn" id="btnNewDoc" title="新建手账（选择画布大小）">🆕 新建</button>
+        <button class="btn" id="btnNewDoc" title="新建手账（选择画布大小）">新建</button>
         <label class="field-label">画布</label>
         <select id="pageSize" title="页面尺寸"></select>
       </div>
-      <button class="btn" id="btnBg" title="背景颜色与纹理">🖍 背景</button>
+      <button class="btn" id="btnBg" title="背景颜色与纹理">背景</button>
       <span class="divider"></span>
-      <button class="btn primary" id="btnExportPng">⬇ 导出图片</button>
-      <button class="btn" id="btnExportHtml">🌐 导出网页</button>
-      <button class="btn primary" id="btnPublish" title="把当前页发布到社区">📤 发布</button>
-      <span class="divider"></span>
-      <button class="btn" id="btnSaveProject">💾 保存项目</button>
-      <button class="btn" id="btnLoadProject">📂 导入项目</button>
+      <button class="btn" id="btnExportPng" title="导出为 PNG 图片">导出</button>
+      <button class="btn primary" id="btnPublish" title="把当前页发布到社区">发布</button>
+      <div class="more-wrap" id="moreWrap">
+        <button class="btn" id="btnMore" title="更多操作">⋯ 更多</button>
+        <div class="more-menu" id="moreMenu" hidden>
+          <button class="more-item" id="btnExportHtml">导出网页</button>
+          <button class="more-item" id="btnSaveProject">保存项目</button>
+          <button class="more-item" id="btnLoadProject">导入项目</button>
+        </div>
+      </div>
       <span class="save-state" id="saveState">已自动保存</span>
     </div>
   </header>
