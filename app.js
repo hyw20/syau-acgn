@@ -1351,12 +1351,31 @@ async function exportPng() {
 }
 
 async function publishToCommunity() {
+  // 先选分类，再渲染当前页并提交
+  pendingCat = '日常';
+  renderCatPicks();
+  $('#catModal').hidden = false;
+}
+
+const PUB_CATEGORIES = ['日常', '旅行', '学习', '美食', '拼贴', '教程', '打卡'];
+let pendingCat = '日常';
+
+function renderCatPicks() {
+  const wrap = $('#catPicks');
+  if (!wrap) return;
+  wrap.innerHTML = PUB_CATEGORIES.map((c) =>
+    `<button type="button" class="cat-chip ${c === pendingCat ? 'active' : ''}" data-cat="${c}">${c}</button>`
+  ).join('');
+}
+
+async function doPublishToCommunity() {
+  $('#catModal').hidden = true;
   try {
     const dataUrl = await renderPngDataUrl();
     const res = await fetch('/api/works', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: '我的自介页', image: dataUrl }),
+      body: JSON.stringify({ title: '我的自介页', image: dataUrl, category: pendingCat }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.status === 401) {
@@ -1805,6 +1824,15 @@ function init() {
   document.addEventListener('click', (e) => {
     if (moreWrap && !moreWrap.contains(e.target)) moreMenu.hidden = true;
   });
+
+  // 发布分类选择
+  $('#catPicks').addEventListener('click', (e) => {
+    const chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    pendingCat = chip.dataset.cat;
+    renderCatPicks();
+  });
+  $('#btnCatPublish').addEventListener('click', doPublishToCommunity);
 
   // 新建手账 + 画布大小选择
   $('#btnNewDoc').addEventListener('click', openNewDoc);

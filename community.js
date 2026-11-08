@@ -4,6 +4,9 @@
 const $ = (sel) => document.querySelector(sel);
 
 let me = null; // 当前登录用户（由 Auth 模块维护）
+const CATEGORIES = ['日常', '旅行', '学习', '美食', '拼贴', '教程', '打卡'];
+let currentCat = '全部'; // 画廊当前筛选分类
+let pubCat = '日常';     // 发布弹窗选中的分类
 
 /* ---------------- API 封装 ---------------- */
 async function api(path, opts = {}) {
@@ -19,6 +22,21 @@ function renderAuth() {
   if (me) $('#userName').textContent = me.username || me.email;
 }
 
+/* ---------------- 分类 ---------------- */
+function renderCatBar() {
+  const bar = $('#catBar');
+  bar.innerHTML = ['全部'].concat(CATEGORIES).map((c) =>
+    `<button class="cat-chip ${c === currentCat ? 'active' : ''}" data-cat="${escapeHtml(c)}" type="button">${c}</button>`
+  ).join('');
+}
+
+function renderPublishCats() {
+  const wrap = $('#publishCats');
+  wrap.innerHTML = CATEGORIES.map((c) =>
+    `<button class="cat-chip ${c === pubCat ? 'active' : ''}" data-cat="${escapeHtml(c)}" type="button">${c}</button>`
+  ).join('');
+}
+
 /* ---------------- 画廊 ---------------- */
 async function loadGallery() {
   const { status, data } = await api('/api/works');
@@ -27,19 +45,23 @@ async function loadGallery() {
     g.innerHTML = `<p class="gallery-empty">加载失败，请刷新重试。</p>`;
     return;
   }
-  $('#galleryCount').textContent = `共 ${data.works.length} 件作品`;
-  if (data.works.length === 0) {
-    g.innerHTML = `<p class="gallery-empty">还没有作品，登录后发布第一张吧 ✨</p>`;
+  let list = data.works;
+  if (currentCat !== '全部') list = list.filter((w) => (w.category || '日常') === currentCat);
+  $('#galleryCount').textContent = currentCat === '全部'
+    ? `共 ${data.works.length} 件作品`
+    : `${currentCat} · ${list.length} 件`;
+  if (list.length === 0) {
+    g.innerHTML = `<p class="gallery-empty">${currentCat === '全部' ? '还没有作品，登录后发布第一张吧 ✨' : '这个分类还没有作品，来发第一张吧 ✨'}</p>`;
     return;
   }
   const myName = me ? (me.username || (me.email ? me.email.split('@')[0] : null)) : null;
-  g.innerHTML = data.works.map((w) => {
+  g.innerHTML = list.map((w) => {
     const mine = myName && w.authorName === myName;
     return `<div class="work-card" data-id="${w.id}">
       <img class="work-thumb" src="/${w.file}" alt="${escapeHtml(w.title)}" loading="lazy">
       <div class="work-info">
         <div>
-          <div class="work-title">${escapeHtml(w.title)}</div>
+          <div class="work-title">${w.category ? `<span class="work-cat">${escapeHtml(w.category)}</span>` : ''}${escapeHtml(w.title)}</div>
           <div class="work-meta"><span>by ${escapeHtml(w.authorName)}</span><span>${timeAgo(w.createdAt)}</span></div>
         </div>
         ${mine ? `<button class="work-del" data-del="${w.id}">删除</button>` : ''}
@@ -71,6 +93,8 @@ function openPublish() {
   $('#publishPreview').hidden = true;
   $('#publishPlaceholder').hidden = false;
   $('#publishError').hidden = true;
+  pubCat = '日常';
+  renderPublishCats();
   $('#publishModal').hidden = false;
 }
 
@@ -83,7 +107,7 @@ async function submitPublish() {
 
   const { status, data } = await api('/api/works', {
     method: 'POST',
-    body: JSON.stringify({ title: title || '未命名作品', image: src }),
+    body: JSON.stringify({ title: title || '未命名作品', image: src, category: pubCat }),
   });
   if (status !== 200) {
     if (status === 401) { errEl.textContent = '请先登录'; errEl.hidden = false; return; }
@@ -149,6 +173,25 @@ async function init() {
   $('#gallery').addEventListener('click', (e) => {
     const del = e.target.closest('[data-del]');
     if (del) deleteWork(del.dataset.del);
+  });
+
+  // 分类条：切换分类后重新加载画廊
+  renderCatBar();
+  $('#catBar').addEventListener('click', (e) => {
+    const chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    currentCat = chip.dataset.cat;
+    renderCatBar();
+    loadGallery();
+  });
+
+  // 发布弹窗分类选择
+  renderPublishCats();
+  $('#publishCats').addEventListener('click', (e) => {
+    const chip = e.target.closest('.cat-chip');
+    if (!chip) return;
+    pubCat = chip.dataset.cat;
+    renderPublishCats();
   });
 }
 

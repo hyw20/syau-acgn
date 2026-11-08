@@ -265,6 +265,24 @@
     </div>
   </div>
 
+  <!-- 发布分类选择 -->
+  <div class="modal-backdrop" id="catModal" hidden>
+    <div class="modal cat-modal">
+      <div class="modal-head">
+        <span>发布到社区</span>
+        <button class="close-btn" data-close="catModal">✕</button>
+      </div>
+      <div class="cat-body">
+        <p class="pane-tip">把当前页发布到哪个分类？</p>
+        <div class="cat-picks" id="catPicks"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="catModal">取消</button>
+        <button class="btn primary" id="btnCatPublish">去发布</button>
+      </div>
+    </div>
+  </div>
+
   <input type="file" id="fileInput" accept="image/*" hidden>
   <input type="file" id="jsonInput" accept=".json,application/json" hidden>
 

@@ -147,6 +147,46 @@ button { font-family: var(--font); }
 
 .nav-auth:hover { background: var(--ink); color: #fff; border-color: var(--ink); }
 
+/* 分类胶囊（社区画廊 + 发布弹窗共用） */
+.cat-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.cat-chip {
+  border: none;
+  background: #f1e8da;
+  color: #6b5546;
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease, transform .08s ease;
+  font-family: var(--font);
+  white-space: nowrap;
+}
+
+.cat-chip:hover { background: #e8dcc8; transform: translateY(-1px); }
+
+.cat-chip.active {
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(75, 58, 51, .25);
+}
+
+.cat-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cat-modal { width: min(480px, 94vw); }
+
+.cat-body { padding: 18px 20px; }
+
 .btn {
   border: 1px solid var(--line);
   background: #fffdf8;

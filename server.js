@@ -86,6 +86,7 @@ function sendJson(res, code, obj, extraHeaders) {
 }
 
 /* ---------------- 数据 ---------------- */
+const WORK_CATEGORIES = ['日常', '旅行', '学习', '美食', '拼贴', '教程', '打卡'];
 let users = readJson(USERS_FILE, []);
 let works = readJson(WORKS_FILE, []);
 const sessions = new Map(); // token -> { userId }
@@ -284,6 +285,7 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/works' && method === 'GET') {
     const list = [...works].sort((a, b) => b.createdAt - a.createdAt).map((w) => ({
       id: w.id, title: w.title, authorName: w.authorName, createdAt: w.createdAt, file: w.file,
+      category: w.category || '日常',
     }));
     return sendJson(res, 200, { works: list });
   }
@@ -295,6 +297,8 @@ async function handleApi(req, res, pathname) {
     if (!user) return sendJson(res, 401, { error: '用户不存在' });
     const body = JSON.parse(await readBody(req));
     const title = String(body.title || '').trim() || '未命名作品';
+    const category = String(body.category || '').trim() || '日常';
+    if (!WORK_CATEGORIES.includes(category)) return sendJson(res, 400, { error: '分类不存在' });
     const image = String(body.image || '');
     const m = image.match(/^data:image\/(png|jpeg|jpg|webp|gif);base64,([A-Za-z0-9+/=]+)$/);
     if (!m) return sendJson(res, 400, { error: '图片格式无效' });
@@ -304,7 +308,7 @@ async function handleApi(req, res, pathname) {
     const id = uid();
     const file = 'uploads/' + id + '.' + ext;
     fs.writeFileSync(path.join(ROOT, file), buf);
-    const work = { id, title, authorId: user.id, authorName: displayName(user), createdAt: Date.now(), file };
+    const work = { id, title, category, authorId: user.id, authorName: displayName(user), createdAt: Date.now(), file };
     works.push(work);
     writeJson(WORKS_FILE, works);
     return sendJson(res, 200, { work });
