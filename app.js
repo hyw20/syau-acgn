@@ -286,12 +286,13 @@ function defaultName(type) {
 }
 
 function createItem(partial) {
+  const s = pageSize();
   const item = {
     id: uid(),
     type: 'shape',
     name: '元素',
-    x: state.page.w / 2,
-    y: state.page.h / 2,
+    x: s.w / 2,
+    y: s.h / 2,
     w: 160,
     h: 120,
     rotation: 0,
@@ -364,6 +365,7 @@ function m(w, h) { return Math.min(w, h); }
 
 /* ---------------- 背景渲染 ---------------- */
 function renderBackground() {
+  const s = pageSize();
   const bg = state.page.bg || { color: '#fdf6e3', pattern: null };
   let defs = '';
   if (bg.pattern) {
@@ -377,8 +379,8 @@ function renderBackground() {
   const fill = bg.pattern ? `url(#bgPattern)` : bg.color;
   return {
     defs,
-    rect: `<rect id="bgRect" x="0" y="0" width="${state.page.w}" height="${state.page.h}" fill="${bg.color}"/>` +
-      (bg.pattern ? `<rect x="0" y="0" width="${state.page.w}" height="${state.page.h}" fill="${fill}"/>` : ''),
+    rect: `<rect id="bgRect" x="0" y="0" width="${s.w}" height="${s.h}" fill="${bg.color}"/>` +
+      (bg.pattern ? `<rect x="0" y="0" width="${s.w}" height="${s.h}" fill="${fill}"/>` : ''),
   };
 }
 
@@ -710,6 +712,8 @@ function goToPage(idx, animate = true) {
       state.currentPage = idx;
       state.lastPage = idx;
       state.selection = null;
+      applyPageSizeToStage();
+      updatePageSizeSel();
       redraw();
       renderLayers();
       renderProps();
@@ -726,6 +730,8 @@ function goToPage(idx, animate = true) {
     state.currentPage = idx;
     state.lastPage = idx;
     state.selection = null;
+    applyPageSizeToStage();
+    updatePageSizeSel();
     redraw();
     renderLayers();
     renderProps();
@@ -735,7 +741,8 @@ function goToPage(idx, animate = true) {
 }
 
 function addPage() {
-  state.pages.push({ items: [] });
+  const s = pageSize();
+  state.pages.push({ items: [], w: s.w, h: s.h });
   goToPage(state.pages.length - 1, false);
   renderLayers();
   renderProps();
@@ -1161,7 +1168,8 @@ function updateTemplateSection() {
 }
 
 function buildTemplateItems(tplId, photos) {
-  const w = state.page.w, h = state.page.h;
+  const s = pageSize();
+  const w = s.w, h = s.h;
   const m = Math.round(Math.min(w, h) * 0.04);
   const g = Math.round(m * 0.5);
   const innerW = w - 2 * m, innerH = h - 2 * m;
@@ -1228,9 +1236,10 @@ function exportSvgClone() {
   const node = stage.cloneNode(true);
   const ui = node.querySelector('#selection-ui');
   if (ui) ui.remove();
-  node.setAttribute('width', state.page.w);
-  node.setAttribute('height', state.page.h);
-  node.setAttribute('viewBox', `0 0 ${state.page.w} ${state.page.h}`);
+  const s = pageSize();
+  node.setAttribute('width', s.w);
+  node.setAttribute('height', s.h);
+  node.setAttribute('viewBox', `0 0 ${s.w} ${s.h}`);
   return node;
 }
 
@@ -1257,9 +1266,10 @@ async function renderPngDataUrl() {
   try {
     const img = await loadImage(url);
     const scale = 2;
+    const s = pageSize();
     const canvas = document.createElement('canvas');
-    canvas.width = state.page.w * scale;
-    canvas.height = state.page.h * scale;
+    canvas.width = s.w * scale;
+    canvas.height = s.h * scale;
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1315,7 +1325,7 @@ function exportHtml() {
 <title>我的自介页</title>
 <style>
   html,body{margin:0;padding:0;background:${bg.color};}
-  .page{max-width:${state.page.w}px;margin:24px auto;}
+  .page{max-width:${pageSize().w}px;margin:24px auto;}
   .page svg{width:100%;height:auto;display:block;box-shadow:0 10px 40px rgba(0,0,0,.18);}
 </style>
 </head>
@@ -1343,7 +1353,7 @@ function loadProjectFile(e) {
       if (!data) throw new Error('bad format');
       state.page = data.page || state.page;
       if (Array.isArray(data.pages)) {
-        state.pages = data.pages.map((p) => ({ items: Array.isArray(p.items) ? p.items : [] }));
+        state.pages = data.pages.map((p) => ({ items: Array.isArray(p.items) ? p.items : [], w: p.w, h: p.h }));
       } else if (Array.isArray(data.items)) {
         state.pages = [{ items: data.items }];
       } else {
@@ -1391,8 +1401,48 @@ function applyBg(bg) {
 }
 
 /* ---------------- 页面尺寸 ---------------- */
+// 当前页尺寸：每一页可独立设置，缺省时继承全局默认值
+function pageSize() {
+  const p = state.pages[state.currentPage];
+  return { w: (p && p.w) || state.page.w, h: (p && p.h) || state.page.h };
+}
+
 function applyPageSizeToStage() {
-  stage.setAttribute('viewBox', `0 0 ${state.page.w} ${state.page.h}`);
+  const s = pageSize();
+  stage.setAttribute('viewBox', `0 0 ${s.w} ${s.h}`);
+}
+
+function setPageSize(w, h) {
+  w = clamp(Math.round(Number(w)) || state.page.w, 200, 4000);
+  h = clamp(Math.round(Number(h)) || state.page.h, 200, 4000);
+  const p = state.pages[state.currentPage];
+  if (p) { p.w = w; p.h = h; }
+  applyPageSizeToStage();
+  redraw();
+  renderProps();
+  scheduleSave();
+  updatePageSizeSel();
+}
+
+function openSizeModal() {
+  const s = pageSize();
+  $('#sizeW').value = s.w;
+  $('#sizeH').value = s.h;
+  $('#sizeModal').hidden = false;
+}
+
+function confirmSizeModal() {
+  setPageSize($('#sizeW').value, $('#sizeH').value);
+  $('#sizeModal').hidden = true;
+}
+
+function updatePageSizeSel() {
+  const sel = $('#pageSize');
+  const s = pageSize();
+  const idx = PAGE_SIZES.findIndex((p) => p.w === s.w && p.h === s.h);
+  sel.innerHTML = PAGE_SIZES.map((p, i) =>
+    `<option value="${i}" ${i === idx ? 'selected' : ''}>${p.label}</option>`).join('') +
+    `<option value="custom" ${idx < 0 ? 'selected' : ''}>自定义…</option>`;
 }
 
 /* ---------------- 新建手账（选画布大小） ---------------- */
@@ -1413,8 +1463,9 @@ function renderSizeCards() {
 
 function openNewDoc() {
   renderSizeCards();
-  $('#customW').value = state.page.w;
-  $('#customH').value = state.page.h;
+  const s = pageSize();
+  $('#customW').value = s.w;
+  $('#customH').value = s.h;
   $('#newDocModal').hidden = false;
 }
 
@@ -1424,7 +1475,7 @@ function createNewDoc(w, h) {
   if (hasContent() && !confirm('新建将清空当前手账的全部内容，继续？')) return;
   state.page.w = w;
   state.page.h = h;
-  state.pages = [{ items: [] }];
+  state.pages = [{ items: [], w, h }];
   state.currentPage = 0;
   state.lastPage = 0;
   state.selection = null;
@@ -1433,6 +1484,7 @@ function createNewDoc(w, h) {
   renderLayers();
   renderProps();
   updatePager();
+  updatePageSizeSel();
   scheduleSave();
   $('#newDocModal').hidden = true;
 }
@@ -1469,7 +1521,7 @@ function loadSaved() {
     if (!data) return false;
     state.page = data.page || state.page;
     if (Array.isArray(data.pages)) {
-      state.pages = data.pages.map((p) => ({ items: Array.isArray(p.items) ? p.items : [] }));
+      state.pages = data.pages.map((p) => ({ items: Array.isArray(p.items) ? p.items : [], w: p.w, h: p.h }));
     } else if (Array.isArray(data.items)) {
       // 旧版单页数据自动迁移
       state.pages = [{ items: data.items }];
@@ -1508,16 +1560,13 @@ function onKeyDown(e) {
 
 /* ---------------- 初始化 ---------------- */
 function init() {
-  // 页面尺寸下拉
+  // 页面尺寸下拉（作用于当前页，可自定义）
   const sizeSel = $('#pageSize');
-  sizeSel.innerHTML = PAGE_SIZES.map((p, i) =>
-    `<option value="${i}" ${p.w === state.page.w && p.h === state.page.h ? 'selected' : ''}>${p.label}</option>`).join('');
+  updatePageSizeSel();
   sizeSel.addEventListener('change', () => {
+    if (sizeSel.value === 'custom') { openSizeModal(); return; }
     const p = PAGE_SIZES[parseInt(sizeSel.value, 10)];
-    state.page.w = p.w; state.page.h = p.h;
-    applyPageSizeToStage();
-    redraw();
-    scheduleSave();
+    setPageSize(p.w, p.h);
   });
 
   const restored = loadSaved();
@@ -1662,6 +1711,9 @@ function init() {
     $('#customH').value = card.dataset.h;
   });
   $('#btnCreateDoc').addEventListener('click', () => createNewDoc($('#customW').value, $('#customH').value));
+
+  // 调整当前页尺寸（自定义）
+  $('#btnSizeApply').addEventListener('click', confirmSizeModal);
 
   // 多图拼接模板
   $('#templateCards').addEventListener('click', (e) => {

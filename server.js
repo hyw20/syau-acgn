@@ -241,37 +241,20 @@ async function handleApi(req, res, pathname) {
   if (pathname === '/api/register' && method === 'POST') {
     const body = JSON.parse(await readBody(req));
     const email = String(body.email || '').trim();
-    const username = String(body.username || '').trim();
     const password = String(body.password || '');
     const code = String(body.code || '').trim();
-    if (password.length < 4) return sendJson(res, 400, { error: '密码至少 4 位' });
+    if (password.length < 4 || password.length > 64) return sendJson(res, 400, { error: '密码需 4-64 位' });
+    // 仅支持 QQ 邮箱注册（需邮件验证码）
+    if (!isQQEmail(email)) return sendJson(res, 400, { error: '注册仅支持 QQ 邮箱（格式：数字@qq.com）' });
+    if (!code) return sendJson(res, 400, { error: '请输入验证码' });
+    if (!verifyCode(email, code)) return sendJson(res, 400, { error: '验证码错误或已过期' });
+    if (users.some((u) => u.email && u.email.toLowerCase() === email.toLowerCase()))
+      return sendJson(res, 409, { error: '该 QQ 邮箱已注册，请直接登录' });
     const salt = crypto.randomBytes(16).toString('hex');
-    let user;
-
-    // 方式一：QQ 邮箱 + 验证码
-    if (email) {
-      if (!isQQEmail(email)) return sendJson(res, 400, { error: '请输入有效的 QQ 邮箱（格式：数字@qq.com）' });
-      if (!code) return sendJson(res, 400, { error: '请输入验证码' });
-      if (!verifyCode(email, code)) return sendJson(res, 400, { error: '验证码错误或已过期' });
-      if (users.some((u) => u.email && u.email.toLowerCase() === email.toLowerCase()))
-        return sendJson(res, 409, { error: '该邮箱已注册' });
-      user = { id: uid(), email, salt, hash: hashPassword(password, salt), createdAt: Date.now() };
-      codes.delete(email.toLowerCase());
-    }
-    // 方式二：用户名 + 密码
-    else if (username) {
-      if (username.length < 2 || username.length > 20) return sendJson(res, 400, { error: '用户名需 2-20 个字符' });
-      if (!/^[\w\u4e00-\u9fa5-]+$/.test(username)) return sendJson(res, 400, { error: '用户名只能含中英文、数字、下划线或连字符' });
-      if (users.some((u) => u.username && u.username.toLowerCase() === username.toLowerCase()))
-        return sendJson(res, 409, { error: '用户名已被占用' });
-      user = { id: uid(), username, salt, hash: hashPassword(password, salt), createdAt: Date.now() };
-    }
-    else {
-      return sendJson(res, 400, { error: '请填写用户名或 QQ 邮箱' });
-    }
-
+    const user = { id: uid(), email, salt, hash: hashPassword(password, salt), createdAt: Date.now() };
     users.push(user);
     writeJson(USERS_FILE, users);
+    codes.delete(email.toLowerCase());
     const token = uid() + uid();
     sessions.set(token, { userId: user.id });
     return sendJson(res, 200, { user: publicUser(user) }, { 'Set-Cookie': setCookie('sid', token, 60 * 60 * 24 * 30) });

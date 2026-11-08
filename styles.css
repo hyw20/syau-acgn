@@ -842,6 +842,10 @@ button { font-family: var(--font); }
 
 .newdoc-body { padding: 18px 20px; }
 
+.size-modal { width: min(420px, 94vw); }
+
+.size-body { padding: 18px 20px; display: grid; gap: 12px; }
+
 .size-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

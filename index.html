@@ -226,6 +226,37 @@
     </div>
   </div>
 
+  <!-- 调整当前页尺寸 -->
+  <div class="modal-backdrop" id="sizeModal" hidden>
+    <div class="modal size-modal">
+      <div class="modal-head">
+        <span>画布尺寸</span>
+        <button class="close-btn" data-close="sizeModal">✕</button>
+      </div>
+      <div class="size-body">
+        <p class="pane-tip">调整当前页画布尺寸（200–4000 px），其他页不受影响</p>
+        <div class="prop-row">
+          <label>宽</label>
+          <div class="prop-inline">
+            <input type="number" id="sizeW" min="200" max="4000" step="10" value="1000">
+            <span>px</span>
+          </div>
+        </div>
+        <div class="prop-row">
+          <label>高</label>
+          <div class="prop-inline">
+            <input type="number" id="sizeH" min="200" max="4000" step="10" value="1400">
+            <span>px</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn" data-close="sizeModal">取消</button>
+        <button class="btn primary" id="btnSizeApply">应用</button>
+      </div>
+    </div>
+  </div>
+
   <input type="file" id="fileInput" accept="image/*" hidden>
   <input type="file" id="jsonInput" accept=".json,application/json" hidden>
 

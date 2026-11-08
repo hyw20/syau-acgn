@@ -41,19 +41,15 @@
             '<button class="auth-tab" data-auth="register" type="button">注册</button>' +
           '</div>' +
           '<div class="prop-row">' +
-            '<label id="accountLabel">用户名 / QQ 邮箱</label>' +
-            '<input type="text" id="authAccount" placeholder="用户名或 QQ 邮箱" maxlength="64">' +
+            '<label id="accountLabel">QQ 邮箱</label>' +
+            '<input type="email" id="authAccount" placeholder="如 123456789@qq.com" maxlength="64">' +
           '</div>' +
           '<div class="prop-row">' +
             '<label>密码</label>' +
             '<input type="password" id="authPassword" placeholder="至少 4 位" maxlength="64">' +
           '</div>' +
           '<div class="register-options" id="registerOptions" hidden>' +
-            '<p class="prop-hint" style="margin:0 0 8px">注册方式：</p>' +
-            '<div class="reg-type">' +
-              '<label class="reg-chip"><input type="radio" name="regType" value="username" checked> 用户名注册</label>' +
-              '<label class="reg-chip"><input type="radio" name="regType" value="email"> QQ 邮箱注册</label>' +
-            '</div>' +
+            '<p class="prop-hint" style="margin:0 0 8px">仅支持 QQ 邮箱注册，需邮件验证码</p>' +
             '<div class="prop-row" id="codeRow" hidden style="margin-top:10px">' +
               '<label>验证码</label>' +
               '<div class="code-inline">' +
@@ -79,16 +75,9 @@
     el.hidden = false;
   }
 
-  function updateRegisterTypeUI() {
-    const checked = document.querySelector('input[name="regType"]:checked');
-    const isEmail = checked && checked.value === 'email';
-    $('#codeRow').hidden = !isEmail;
-    $('#accountLabel').textContent = isEmail ? 'QQ 邮箱' : '用户名';
-    $('#authAccount').placeholder = isEmail ? '如 123456789@qq.com' : '2-20 个字符';
-  }
-
   function open(mode) {
     authMode = mode || 'login';
+    const isRegister = authMode === 'register';
     $('#authSubmit').textContent = authMode === 'login' ? '登录' : '注册';
     $('#authError').hidden = true;
     $('#authAccount').value = '';
@@ -97,8 +86,11 @@
     $('#codeHint').hidden = true;
     document.querySelectorAll('#authTabs .auth-tab').forEach((t) =>
       t.classList.toggle('active', t.dataset.auth === authMode));
-    $('#registerOptions').hidden = authMode !== 'register';
-    updateRegisterTypeUI();
+    $('#registerOptions').hidden = !isRegister;
+    $('#codeRow').hidden = !isRegister;
+    $('#accountLabel').textContent = isRegister ? 'QQ 邮箱' : '用户名 / QQ 邮箱';
+    $('#authAccount').placeholder = isRegister ? '如 123456789@qq.com' : '用户名或 QQ 邮箱';
+    $('#authAccount').type = isRegister ? 'email' : 'text';
     $('#authModal').hidden = false;
     $('#authAccount').focus();
   }
@@ -111,12 +103,8 @@
 
     let path, payload;
     if (authMode === 'register') {
-      const checked = document.querySelector('input[name="regType"]:checked');
-      const isEmail = checked && checked.value === 'email';
       path = '/api/register';
-      payload = isEmail
-        ? { email: account, password, code: $('#authCode').value.trim() }
-        : { username: account, password };
+      payload = { email: account, password, code: $('#authCode').value.trim() };
     } else {
       path = '/api/login';
       payload = { account, password };
@@ -180,8 +168,6 @@
       const tab = e.target.closest('.auth-tab');
       if (tab) open(tab.dataset.auth);
     });
-    document.querySelectorAll('input[name="regType"]').forEach((r) =>
-      r.addEventListener('change', updateRegisterTypeUI));
     wrap.querySelectorAll('[data-close]').forEach((b) =>
       b.addEventListener('click', () => { wrap.hidden = true; }));
     wrap.addEventListener('click', (e) => { if (e.target === wrap) wrap.hidden = true; });
