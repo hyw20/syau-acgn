@@ -88,6 +88,30 @@
     render();
   }
 
+  // 旧版单本数据迁移成一本书（与编辑器内逻辑一致）
+  function migrateLegacy() {
+    const raw = localStorage.getItem('syau-scrapbook-v2');
+    if (!raw) return;
+    if (getBooks().some((b) => b.id === 'default')) {
+      try { localStorage.removeItem('syau-scrapbook-v2'); } catch (err) {}
+      return;
+    }
+    try {
+      const data = JSON.parse(raw);
+      localStorage.setItem(BOOK_PREFIX + 'default', raw);
+      const arr = getBooks();
+      arr.push({
+        id: 'default',
+        title: '我的手账',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        pageCount: (data.pages && data.pages.length) || 1,
+      });
+      saveBooks(arr);
+      try { localStorage.removeItem('syau-scrapbook-v2'); } catch (err) {}
+    } catch (err) {}
+  }
+
   function bind() {
     $('#btnEmptyCreate').addEventListener('click', createNew);
     $('#btnFabNew').addEventListener('click', createNew);
@@ -104,6 +128,7 @@
   }
 
   function init() {
+    migrateLegacy();
     bind();
     render();
     const navAuth = $('#navAuth');
