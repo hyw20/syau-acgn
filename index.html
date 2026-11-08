@@ -32,11 +32,11 @@
   </div>
 
   <header class="topbar">
-    <div class="brand">
+    <a class="brand" href="/" title="回到书架">
       <span class="brand-icon">📔</span>
       <span class="brand-text">手账本</span>
       <span class="brand-sub">自介页编辑器</span>
-    </div>
+    </a>
     <nav class="main-nav">
       <a class="nav-item active" href="/">手账</a>
       <a class="nav-item" href="/community.html">社区</a>
@@ -209,6 +209,10 @@
       </div>
       <div class="newdoc-body">
         <p class="pane-tip">选择画布大小，就像新建一张画纸</p>
+        <div class="prop-row">
+          <label>本子名称</label>
+          <input type="text" id="docTitle" placeholder="如：我的手账 / 旅行记录" maxlength="40">
+        </div>
         <div class="size-grid" id="sizeGrid"></div>
         <div class="prop-row">
           <label>自定义（宽 × 高，单位 px）</label>

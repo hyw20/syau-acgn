@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>手账本 · 我的书架</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="auth.css">
+  <link rel="stylesheet" href="bookshelf.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-icon">📔</span>
+      <span class="brand-text">手账本</span>
+      <span class="brand-sub">我的书架</span>
+    </a>
+    <nav class="main-nav">
+      <a class="nav-item active" href="/">手账</a>
+      <a class="nav-item" href="/community.html">社区</a>
+      <button class="nav-item" id="navAuth">登录</button>
+    </nav>
+  </header>
+
+  <main class="shelf">
+    <section class="shelf-head">
+      <h1 class="shelf-title">📚 我的手账本</h1>
+      <p class="shelf-sub">每一本都是你亲手贴出来的小世界 ✨</p>
+    </section>
+
+    <!-- 空态 -->
+    <section class="shelf-empty" id="shelfEmpty" hidden>
+      <div class="empty-illust">🪄</div>
+      <p class="empty-title">书架上还是空的</p>
+      <p class="empty-sub">挑个喜欢的封面颜色，翻开第一本吧</p>
+      <button class="btn primary empty-create" id="btnEmptyCreate">＋ 新建第一本手账</button>
+    </section>
+
+    <!-- 封面卡片网格 -->
+    <section class="shelf-grid" id="shelfGrid" hidden></section>
+  </main>
+
+  <!-- 底部浮动新建 -->
+  <button class="fab" id="btnFabNew" title="新建手账">＋</button>
+
+  <script src="auth.js"></script>
+  <script src="bookshelf.js"></script>
+</body>
+</html>

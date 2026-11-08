@@ -258,7 +258,12 @@ function stickerInner(kind, fill) {
 }
 
 /* ---------------- 状态 ---------------- */
-const STORAGE_KEY = 'syau-scrapbook-v2';
+const BOOKS_KEY = 'syau-books';          // 手账本索引：[{id,title,createdAt,updatedAt,pageCount}]
+const BOOK_PREFIX = 'syau-book-';        // 每本手账内容：syau-book-<id>
+const LEGACY_KEY = 'syau-scrapbook-v2';  // 旧版单本存储（迁移用）
+
+let currentBookId = null;    // 当前编辑的手账 id
+let currentBookTitle = '';   // 当前手账标题
 
 let state = {
   page: { w: 1000, h: 1400, bg: { color: '#fdf6e3', pattern: null } },
@@ -269,6 +274,61 @@ let state = {
 
 const stage = $('#stage');
 const svgNS = 'http://www.w3.org/2000/svg';
+
+/* ---------------- 多本手账存取 ---------------- */
+function getBookIndex() {
+  try {
+    const raw = localStorage.getItem(BOOKS_KEY);
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function saveBookIndex(arr) {
+  try { localStorage.setItem(BOOKS_KEY, JSON.stringify(arr)); } catch (err) {}
+}
+
+function upsertBookMeta(meta) {
+  const arr = getBookIndex();
+  const i = arr.findIndex((b) => b.id === meta.id);
+  const now = Date.now();
+  if (i >= 0) arr[i] = Object.assign({}, arr[i], meta, { updatedAt: now });
+  else arr.push(Object.assign({ createdAt: now, updatedAt: now }, meta));
+  saveBookIndex(arr);
+}
+
+function bookKey(id) { return BOOK_PREFIX + id; }
+
+function loadBook(id) {
+  try {
+    const raw = localStorage.getItem(bookKey(id));
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function bookMeta(id) {
+  return getBookIndex().find((b) => b.id === id) || null;
+}
+
+// 旧版单本数据迁移成一本手账（只迁移一次）
+function migrateLegacyBook() {
+  const raw = localStorage.getItem(LEGACY_KEY);
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    const existed = getBookIndex().find((b) => b.id === 'default');
+    if (existed) { localStorage.removeItem(LEGACY_KEY); return existed; }
+    localStorage.setItem(bookKey('default'), raw);
+    const meta = {
+      id: 'default',
+      title: '我的手账',
+      pageCount: (data.pages && data.pages.length) || 1,
+    };
+    upsertBookMeta(meta);
+    localStorage.removeItem(LEGACY_KEY);
+    return meta;
+  } catch { return null; }
+}
 
 function currentPageData() { return state.pages[state.currentPage]; }
 function currentItems() { return currentPageData().items; }
@@ -306,7 +366,7 @@ function createItem(partial) {
 
 /* ---------------- 元素渲染 ---------------- */
 function renderItem(item) {
-  const t = `translate(${item.x} ${item.y}) rotate(${item.rotation})`;
+  const t = `translate(${item.x} ${item.y}) rotate(${item.rotation || 0})`;
   const wrap = `<g class="layer" data-id="${item.id}" transform="${t}">`;
 
   if (item.type === 'text') {
@@ -1446,10 +1506,6 @@ function updatePageSizeSel() {
 }
 
 /* ---------------- 新建手账（选画布大小） ---------------- */
-function hasContent() {
-  return state.pages.some((p) => p.items && p.items.length > 0);
-}
-
 function renderSizeCards() {
   const grid = $('#sizeGrid');
   grid.innerHTML = PAGE_SIZES.map((p) => {
@@ -1466,13 +1522,21 @@ function openNewDoc() {
   const s = pageSize();
   $('#customW').value = s.w;
   $('#customH').value = s.h;
+  const dt = $('#docTitle');
+  if (dt) {
+    dt.value = '我的手账 · ' + (new Date().getMonth() + 1) + '月' + new Date().getDate() + '日';
+    dt.select();
+  }
   $('#newDocModal').hidden = false;
 }
 
 function createNewDoc(w, h) {
   w = clamp(Math.round(Number(w)) || 1000, 200, 4000);
   h = clamp(Math.round(Number(h)) || 1400, 200, 4000);
-  if (hasContent() && !confirm('新建将清空当前手账的全部内容，继续？')) return;
+  const title = ($('#docTitle') && $('#docTitle').value.trim()) ||
+    ('我的手账 · ' + (new Date().getMonth() + 1) + '月' + new Date().getDate() + '日');
+  currentBookId = uid();
+  currentBookTitle = title;
   state.page.w = w;
   state.page.h = h;
   state.pages = [{ items: [], w, h }];
@@ -1486,6 +1550,7 @@ function createNewDoc(w, h) {
   updatePager();
   updatePageSizeSel();
   scheduleSave();
+  history.replaceState(null, '', '/editor?id=' + currentBookId);
   $('#newDocModal').hidden = true;
 }
 
@@ -1496,7 +1561,14 @@ function scheduleSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 2, page: state.page, pages: state.pages, lastPage: state.lastPage }));
+      const blob = JSON.stringify({ version: 2, page: state.page, pages: state.pages, lastPage: state.lastPage });
+      if (currentBookId) {
+        localStorage.setItem(bookKey(currentBookId), blob);
+        upsertBookMeta({ id: currentBookId, title: currentBookTitle || '我的手账', pageCount: state.pages.length });
+      } else {
+        // 兜底（正常流程不会走到）：未关联手账时保持旧存储行为
+        localStorage.setItem(LEGACY_KEY, blob);
+      }
       flashSave('已自动保存');
     } catch (err) {
       flashSave('保存失败');
@@ -1513,11 +1585,9 @@ function flashSave(text) {
   el._t = setTimeout(() => { el.style.opacity = '.55'; }, 1200);
 }
 
-function loadSaved() {
+function loadSaved(id) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return false;
-    const data = JSON.parse(raw);
+    const data = loadBook(id || currentBookId);
     if (!data) return false;
     state.page = data.page || state.page;
     if (Array.isArray(data.pages)) {
@@ -1560,6 +1630,32 @@ function onKeyDown(e) {
 
 /* ---------------- 初始化 ---------------- */
 function init() {
+  // 打开哪本手账：?id= 指定 · ?new=1 新建 · 否则尝试迁移旧档，都没有则回书架
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  const isNew = params.get('new') === '1';
+
+  let opened = false;
+  if (id) {
+    const meta = bookMeta(id);
+    if (!meta || !loadSaved(id)) { location.href = '/'; return; }
+    currentBookId = id;
+    currentBookTitle = meta.title || '';
+    opened = true;
+  } else if (!isNew) {
+    const migrated = migrateLegacyBook();
+    if (migrated) {
+      currentBookId = migrated.id;
+      currentBookTitle = migrated.title;
+      opened = loadSaved(migrated.id);
+      history.replaceState(null, '', '/editor?id=' + migrated.id);
+    } else {
+      // 没有书也没打算新建：请从书架开始
+      location.href = '/';
+      return;
+    }
+  }
+
   // 页面尺寸下拉（作用于当前页，可自定义）
   const sizeSel = $('#pageSize');
   updatePageSizeSel();
@@ -1569,9 +1665,8 @@ function init() {
     setPageSize(p.w, p.h);
   });
 
-  const restored = loadSaved();
-  if (!restored) {
-    // 首次打开：像画图软件一样，先选画布大小
+  if (!opened) {
+    // ?new=1 或首次新建：像画图软件一样，先选画布大小
     applyPageSizeToStage();
     renderAssetGrids();
     redraw();
